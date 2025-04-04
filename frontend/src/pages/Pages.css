@@ -1,0 +1,37 @@
+.audio-section {
+  margin-top: 10px;
+}
+
+.btn-audio {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+.btn-audio.playing {
+  background-color: #f44336;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: white;
+}
+
+.badge.music {
+  background-color: #6f42c1;
+}
+
+.badge.question {
+  background-color: #fd7e14;
+}
+
+.badge.rest {
+  background-color: #20c997;
+}

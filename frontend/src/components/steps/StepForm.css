@@ -1,0 +1,115 @@
+.form-container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .form-container h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.75rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1.25rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  
+  .form-group textarea {
+    resize: vertical;
+  }
+  
+  .form-group select {
+    background-color: white;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .form-actions button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .form-actions .btn-primary {
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+  }
+  
+  .form-actions .btn-primary:hover {
+    background-color: #303f9f;
+  }
+  
+  .form-actions .btn-secondary {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+  }
+  
+  .form-actions .btn-secondary:hover {
+    background-color: #e0e0e0;
+  }
+  .file-input {
+    display: block;
+    margin-bottom: 10px;
+  }
+  
+  .audio-preview {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+    background-color: #f5f5f5;
+    padding: 8px;
+    border-radius: 4px;
+  }
+  
+  .btn-audio {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+  
+  .btn-audio.playing {
+    background-color: #f44336;
+  }
+  
+  .file-name {
+    font-size: 14px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }

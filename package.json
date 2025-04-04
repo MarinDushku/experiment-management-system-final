@@ -1,0 +1,33 @@
+{
+    "name": "research-experiment-management-system",
+    "version": "1.0.0",
+    "description": "A system for managing research experiments with structured trials and steps",
+    "main": "backend/server.js",
+    "scripts": {
+        "start": "node backend/server.js",
+        "server": "nodemon backend/server.js",
+        "client": "npm start --prefix frontend",
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "install-all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+        "build": "npm run build --prefix frontend",
+        "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix frontend && npm run build --prefix frontend"
+    },
+    "keywords": [
+        "research",
+        "experiment",
+        "management",
+        "nodejs",
+        "react"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "concurrently": "^7.6.0",
+        "dotenv": "^16.4.7",
+        "multer": "^1.4.5-lts.2",
+        "react-beautiful-dnd": "^13.1.1"
+    },
+    "devDependencies": {
+        "nodemon": "^2.0.20"
+    }
+}

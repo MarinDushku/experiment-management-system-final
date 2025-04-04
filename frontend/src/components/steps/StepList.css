@@ -1,0 +1,106 @@
+/* StepList.css */
+.step-list {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .step-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .steps-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  
+  .step-card {
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    transition: transform 0.2s;
+  }
+  
+  .step-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+  }
+  
+  .step-type {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 12px;
+    color: white;
+  }
+  
+  .step-type.music {
+    background-color: #6f42c1;
+  }
+  
+  .step-type.question {
+    background-color: #fd7e14;
+  }
+  
+  .step-type.rest {
+    background-color: #20c997;
+  }
+  
+  .step-content {
+    margin-bottom: 15px;
+  }
+  
+  .step-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  
+  .btn-edit, .btn-delete {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .btn-edit {
+    background-color: #ffc107;
+    color: #212529;
+  }
+  
+  .btn-delete {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .no-steps {
+    text-align: center;
+    padding: 30px;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .loading, .error {
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .error {
+    color: #dc3545;
+  }

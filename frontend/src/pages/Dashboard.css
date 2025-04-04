@@ -1,0 +1,87 @@
+.dashboard {
+    padding: 2rem 0;
+  }
+  
+  .dashboard h2 {
+    margin-bottom: 1.5rem;
+    color: #333;
+    text-align: center;
+  }
+  
+  .dashboard-content {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+  }
+  
+  .welcome-card {
+    background-color: #e8eaf6;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  
+  .welcome-card h3 {
+    color: #3f51b5;
+    margin-bottom: 0.5rem;
+  }
+  
+  .dashboard-actions {
+    margin-top: 2rem;
+  }
+  
+  .action-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .action-card, .admin-card {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  
+  .action-card:hover, .admin-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .action-card h4, .admin-card h4 {
+    color: #3f51b5;
+    margin-bottom: 0.5rem;
+  }
+  
+  .action-card p, .admin-card p {
+    color: #666;
+    margin-bottom: 1rem;
+  }
+  
+  .admin-card {
+    margin-top: 2rem;
+    background-color: #ede7f6;
+  }
+  
+  .btn-secondary {
+    display: inline-block;
+    background-color: #3f51b5;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #303f9f;
+  }
+  
+  @media (max-width: 768px) {
+    .action-cards {
+      grid-template-columns: 1fr;
+    }
+  }
