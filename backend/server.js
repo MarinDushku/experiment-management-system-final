@@ -44,6 +44,25 @@ if (process.env.NODE_ENV === 'production') {
 
 const PORT = process.env.PORT || 5000;
 
+// When MongoDB is connected, rebuild indexes (temporary fix)
+const mongoose = require('mongoose');
+
+mongoose.connection.once('open', async () => {
+  console.log('MongoDB connected, checking indexes...');
+  try {
+    // Drop existing indexes on the users collection
+    await mongoose.connection.db.collection('users').dropIndexes();
+    console.log('Dropped existing indexes on users collection');
+    
+    // Recreate indexes based on the schema
+    const User = require('./models/User');
+    await User.createIndexes();
+    console.log('Recreated indexes on users collection');
+  } catch (err) {
+    console.error('Error managing indexes:', err);
+  }
+});
+
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 
 // Handle unhandled promise rejections

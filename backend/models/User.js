@@ -5,7 +5,12 @@ const UserSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    collation: { locale: 'en', strength: 2 } // Added for case-insensitive uniqueness
+  },
+  email: {
+    type: String,
+    sparse: true // Allows null/undefined values
   },
   password: {
     type: String,

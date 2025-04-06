@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import api from '../utils/api';
 import StepForm from '../components/steps/StepForm';
-import './Pages.css';
+import './Steps.css'; // Use the new CSS file
 
 const Steps = () => {
   const [steps, setSteps] = useState([]);
@@ -35,7 +35,17 @@ const Steps = () => {
       console.log('Fetching steps...');
       const res = await api.get('/steps');
       console.log('Steps fetched:', res.data);
-      setSteps(res.data);
+      
+      // Sort steps by type for better organization
+      const sortedSteps = [...res.data].sort((a, b) => {
+        // First sort by type
+        if (a.type < b.type) return -1;
+        if (a.type > b.type) return 1;
+        // Then by name
+        return a.name.localeCompare(b.name);
+      });
+      
+      setSteps(sortedSteps);
       setLoading(false);
     } catch (err) {
       console.error('Error details:', err);
@@ -115,7 +125,14 @@ const Steps = () => {
     setEditingStep(null);
   };
 
-  const playAudio = (audioSrc) => {
+  const toggleAudio = (audioSrc) => {
+    // If the same audio is currently playing, pause it
+    if (audioPlaying && audioPlaying.src.includes(audioSrc)) {
+      audioPlaying.pause();
+      setAudioPlaying(null);
+      return;
+    }
+    
     // Stop any currently playing audio
     if (audioPlaying) {
       audioPlaying.pause();
@@ -143,7 +160,14 @@ const Steps = () => {
     }
   };
   
-  if (loading) return <div className="loading">Loading steps...</div>;
+  if (loading) return (
+    <div className="page-container">
+      <div className="loading">
+        <h3>Loading steps...</h3>
+        <p>Please wait while we retrieve your experiment steps.</p>
+      </div>
+    </div>
+  );
   
   return (
     <div className="page-container">
@@ -177,8 +201,8 @@ const Steps = () => {
                     <div className="audio-section">
                       <p><strong>Audio File:</strong> {step.details.audioFile.split('/').pop()}</p>
                       <button 
-                        className={`btn-audio ${audioPlaying ? 'playing' : ''}`}
-                        onClick={() => playAudio(step.details.audioFile)}
+                        className={`btn-audio ${audioPlaying && audioPlaying.src.includes(step.details.audioFile) ? 'playing' : ''}`}
+                        onClick={() => toggleAudio(step.details.audioFile)}
                       >
                         {audioPlaying && audioPlaying.src.includes(step.details.audioFile) 
                           ? 'Pause Audio' 

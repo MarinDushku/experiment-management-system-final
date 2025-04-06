@@ -8,8 +8,21 @@ exports.register = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check if user already exists
-    const userExists = await User.findOne({ username });
+    // Input validation
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Please provide both username and password' });
+    }
+
+    // Log the exact username being checked
+    console.log('Attempting to register username:', username);
+
+    // Check if user already exists with case-insensitive match
+    const userExists = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } 
+    });
+    
+    console.log('User exists check result:', userExists);
+
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
@@ -22,6 +35,7 @@ exports.register = async (req, res) => {
     });
 
     if (user) {
+      console.log('User created successfully:', user.username);
       res.status(201).json({
         message: 'User registered successfully. Awaiting admin approval.'
       });
@@ -29,8 +43,17 @@ exports.register = async (req, res) => {
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Registration error details:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    
+    // Check for MongoDB duplicate key error (code 11000)
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Username already exists' });
+    }
+    
+    res.status(500).json({ message: 'Server Error: ' + error.message });
   }
 };
 
@@ -41,8 +64,10 @@ exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ username });
+    // Find user (case insensitive)
+    const user = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } 
+    });
     
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -71,8 +96,8 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server Error: ' + error.message });
   }
 };
 
@@ -82,9 +107,14 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
     res.json(user);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Get user error:', error);
+    res.status(500).json({ message: 'Server Error: ' + error.message });
   }
 };
