@@ -1,5 +1,7 @@
+// AdminPanel.js
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
+import ExperimentResults from '../components/admin/ExperimentResults';
 import './AdminPanel.css';
 
 const AdminPanel = () => {
@@ -110,6 +112,9 @@ const AdminPanel = () => {
           </table>
         </div>
       </div>
+      
+      {/* Add Experiment Results Component */}
+      <ExperimentResults />
     </div>
   );
 };

@@ -1,0 +1,126 @@
+/* ExperimentResults.css - Place in frontend/src/components/admin/ */
+.experiment-results {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    margin-top: 2rem;
+  }
+  
+  .experiment-results h3 {
+    color: #3f51b5;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+  }
+  
+  .filter-container {
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .filter-container select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    min-width: 240px;
+  }
+  
+  .results-container {
+    margin-top: 1.5rem;
+  }
+  
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .action-buttons button {
+    padding: 0.5rem 0.75rem;
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .action-buttons button:hover {
+    background-color: #303f9f;
+  }
+  
+  .action-buttons button:disabled {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+  }
+  
+  .data-display {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 992px) {
+    .data-display {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  
+  .responses-container, .eeg-container {
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    padding: 1rem;
+  }
+  
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .data-table th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+  }
+  
+  .data-table tr:hover {
+    background-color: #f1f1f1;
+  }
+  
+  .no-data {
+    color: #757575;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+  }
+  
+  .loading, .no-experiments {
+    text-align: center;
+    padding: 2rem;
+    color: #757575;
+  }
+  
+  .error-message {
+    background-color: #ffebee;
+    color: #d32f2f;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }

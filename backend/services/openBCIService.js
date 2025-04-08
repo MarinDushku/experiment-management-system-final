@@ -1,3 +1,4 @@
+// openBCIService.js
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -135,22 +136,31 @@ class OpenBCIService {
      * Stop recording and save the data
      * @param {string} experimentId - Experiment ID for saving data
      * @param {number} duration - Duration to record in seconds
+     * @param {string} experimentName - Name of the experiment
      * @returns {Promise<Object>} - Recording result with file path
      */
-    async stopRecording(experimentId, duration = 5) {
+    async stopRecording(experimentId, duration = 5, experimentName = '') {
         try {
             if (!this.serialPort || !this.isConnected) {
                 throw new Error('OpenBCI device not connected');
             }
             
+            // Prepare filename with experiment name
+            const timestamp = new Date().toISOString().replace(/:/g, '-');
+            const filename = `eeg_${experimentName || 'unnamed'}_${timestamp}.csv`;
+            
             const result = await this.executePythonScript({
                 action: 'stop_recording',
                 serial_port: this.serialPort,
                 experiment_id: experimentId,
-                duration: duration
+                duration: duration,
+                output_file: filename
             });
             
-            return result;
+            return {
+                ...result,
+                filename: filename
+            };
         } catch (error) {
             console.error('Error stopping EEG recording:', error);
             throw error;

@@ -20,4 +20,6 @@ router.post('/experiment/:experimentId/start', auth, roleCheck(['researcher', 'a
 // Stop experiment with EEG recording
 router.post('/experiment/:experimentId/stop', auth, roleCheck(['researcher', 'admin']), openBCIController.stopExperimentWithEEG);
 
+// routes/openBCI.js - Add this endpoint
+router.get('/recordings', auth, roleCheck('admin', 'researcher'), openBCIController.getEEGRecordingsByExperiment);
 module.exports = router;

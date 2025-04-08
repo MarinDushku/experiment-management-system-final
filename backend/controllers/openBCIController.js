@@ -146,7 +146,7 @@ exports.startExperimentWithEEG = async (req, res) => {
 exports.stopExperimentWithEEG = async (req, res) => {
     try {
         const { experimentId } = req.params;
-        const { duration } = req.body;
+        const { duration, experimentName } = req.body;
         
         // Check if experiment exists
         const experiment = await Experiment.findById(experimentId);
@@ -164,6 +164,7 @@ exports.stopExperimentWithEEG = async (req, res) => {
             // Create EEG recording entry in database
             const eegRecording = new EEGRecording({
                 experiment: experimentId,
+                experimentName: experimentName, // Add experiment name
                 startTime: new Date(result.timestamp),
                 endTime: new Date(),
                 samplingRate: result.sampling_rate,
@@ -199,3 +200,40 @@ exports.stopExperimentWithEEG = async (req, res) => {
         });
     }
 };
+exports.getEEGRecordingsByExperiment = async (req, res) => {
+    try {
+      const { experimentId, experimentName } = req.query;
+      
+      let query = {};
+      
+      if (experimentId) {
+        query.experiment = experimentId;
+      }
+      
+      if (experimentName) {
+        query.experimentName = experimentName;
+      }
+      
+      // If neither is provided, return error
+      if (Object.keys(query).length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Must provide experimentId or experimentName' 
+        });
+      }
+      
+      const recordings = await EEGRecording.find(query).sort({ startTime: 1 });
+      
+      return res.status(200).json({ 
+        success: true, 
+        data: recordings 
+      });
+    } catch (error) {
+      console.error('Error getting EEG recordings:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Server error', 
+        error: error.message 
+      });
+    }
+  };

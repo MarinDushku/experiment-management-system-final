@@ -1,9 +1,14 @@
+// Update EEGRecording.js
 const mongoose = require('mongoose');
 
 const EEGRecordingSchema = new mongoose.Schema({
   experiment: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Experiment',
+    required: true
+  },
+  experimentName: {
+    type: String,
     required: true
   },
   startTime: {

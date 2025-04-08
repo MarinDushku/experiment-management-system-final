@@ -168,6 +168,7 @@ const ExperimentRun = () => {
   };
   
   // Stop EEG recording when experiment is completed
+ // Update in ExperimentRun.js - stopExperimentWithEEG function
   const stopExperimentWithEEG = async () => {
     try {
       // Only stop if experiment was started with EEG
@@ -176,20 +177,20 @@ const ExperimentRun = () => {
         await axios.post(
           `/api/openbci/experiment/${id}/stop`, 
           { 
-            duration: 5, // Default duration to collect final data
-            experimentRunName: experimentName
+           duration: 5, // Default duration to collect final data
+           experimentName: experimentName  // Pass experiment name
           }, 
           {
             headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
+             Authorization: `Bearer ${token}`
+           }
+         }
+       );
         setEegRecordingStarted(false);
-      }
-    } catch (error) {
-      console.error("Error stopping experiment with EEG:", error);
-    }
+     }
+   } catch (error) {
+     console.error("Error stopping experiment with EEG:", error);
+   }
   };
   
   // Get the current trial and step
