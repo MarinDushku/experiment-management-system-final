@@ -19,6 +19,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/steps', require('./routes/steps'));
 app.use('/api/trials', require('./routes/trials'));
 app.use('/api/experiments', require('./routes/experiments'));
+app.use('/api/responses', require('./routes/responses'));
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Add a simple test route

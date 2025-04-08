@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import MusicStep from './steps/MusicStep';
 import RestStep from './steps/RestStep';
 import QuestionStep from './steps/QuestionStep';
 import ExperimentComplete from './steps/ExperimentComplete';
+import OpenBCIConnection from './OpenBCIConnection';
 import './ExperimentRun.css';
 
 const ExperimentRun = () => {
@@ -22,29 +23,45 @@ const ExperimentRun = () => {
   
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Enable fullscreen mode when the component mounts
+  
+  // OpenBCI related states
+  const [isOpenBCIConnected, setIsOpenBCIConnected] = useState(false);
+  const [eegRecordingStarted, setEegRecordingStarted] = useState(false);
+  const [experimentStarted, setExperimentStarted] = useState(false);
+  
+  // New states for experiment naming and timing
+  const [experimentName, setExperimentName] = useState('');
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const experimentStartTime = useRef(null);
+  const [responses, setResponses] = useState([]);
+  
+  // Enable fullscreen mode when the experiment starts
   useEffect(() => {
-    // Add class to body
-    document.body.classList.add('experiment-running');
-    
-    // Enter fullscreen if supported
-    const requestFullscreen = () => {
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen()
-          .then(() => setIsFullscreen(true))
-          .catch(err => console.error('Error attempting to enable fullscreen:', err));
-      } else if (document.documentElement.webkitRequestFullscreen) {
-        document.documentElement.webkitRequestFullscreen();
-        setIsFullscreen(true);
-      } else if (document.documentElement.msRequestFullscreen) {
-        document.documentElement.msRequestFullscreen();
-        setIsFullscreen(true);
-      }
-    };
+    if (experimentStarted) {
+      // Add class to body
+      document.body.classList.add('experiment-running');
+      
+      // Enter fullscreen if supported
+      const requestFullscreen = () => {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen()
+            .then(() => setIsFullscreen(true))
+            .catch(err => console.error('Error attempting to enable fullscreen:', err));
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+          setIsFullscreen(true);
+        } else if (document.documentElement.msRequestFullscreen) {
+          document.documentElement.msRequestFullscreen();
+          setIsFullscreen(true);
+        }
+      };
 
-    // Try to enter fullscreen mode
-    requestFullscreen();
+      // Try to enter fullscreen mode
+      requestFullscreen();
+      
+      // Set experiment start time
+      experimentStartTime.current = Date.now();
+    }
     
     // Clean up when component unmounts
     return () => {
@@ -61,7 +78,7 @@ const ExperimentRun = () => {
         }
       }
     };
-  }, []);
+  }, [experimentStarted, isFullscreen]);
   
   // Fetch experiment data
   useEffect(() => {
@@ -87,6 +104,94 @@ const ExperimentRun = () => {
     fetchExperiment();
   }, [id]);
   
+  // Handle OpenBCI connection status change
+  const handleOpenBCIConnectionChange = (connected) => {
+    setIsOpenBCIConnected(connected);
+  };
+  
+  // Start the experiment name prompt
+  const handlePrepareStart = () => {
+    setShowNamePrompt(true);
+  };
+  
+  // Cancel experiment start
+  const handleCancelStart = () => {
+    setShowNamePrompt(false);
+  };
+  
+  // Start experiment (with or without EEG recording)
+  const startExperiment = async () => {
+    if (!experimentName.trim()) {
+      alert("Please enter a name for this experiment run");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Check OpenBCI connection status
+      if (isOpenBCIConnected) {
+        // Try to start EEG recording
+        const token = localStorage.getItem('token');
+        try {
+          const response = await axios.post(
+            `/api/openbci/experiment/${id}/start`, 
+            { experimentRunName: experimentName }, 
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+          
+          if (response.data.success) {
+            setEegRecordingStarted(true);
+          } else {
+            console.warn("Failed to start EEG recording, but continuing experiment.");
+          }
+        } catch (eegError) {
+          console.error("Error starting EEG recording:", eegError);
+          // Continue experiment even if EEG recording fails
+        }
+      }
+      
+      // Start experiment regardless of EEG connection
+      setExperimentStarted(true);
+      setShowNamePrompt(false);
+      
+    } catch (error) {
+      console.error("Error starting experiment:", error);
+      setError("Error starting experiment");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Stop EEG recording when experiment is completed
+  const stopExperimentWithEEG = async () => {
+    try {
+      // Only stop if experiment was started with EEG
+      if (experimentStarted && eegRecordingStarted) {
+        const token = localStorage.getItem('token');
+        await axios.post(
+          `/api/openbci/experiment/${id}/stop`, 
+          { 
+            duration: 5, // Default duration to collect final data
+            experimentRunName: experimentName
+          }, 
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        setEegRecordingStarted(false);
+      }
+    } catch (error) {
+      console.error("Error stopping experiment with EEG:", error);
+    }
+  };
+  
   // Get the current trial and step
   const getCurrentTrial = () => {
     if (!experiment) return null;
@@ -110,6 +215,47 @@ const ExperimentRun = () => {
     
     const orderedSteps = [...currentTrial.trial.steps].sort((a, b) => a.order - b.order);
     return orderedSteps[currentStepIndex];
+  };
+  
+  // Handle question responses
+  const handleQuestionResponse = (stepId, response) => {
+    const timestamp = Date.now();
+    const timeSinceStart = timestamp - experimentStartTime.current;
+    
+    const responseData = {
+      stepId,
+      response,
+      timestamp,
+      timeSinceStart, // milliseconds since experiment started
+      experimentName: experimentName,
+      experimentId: id,
+      trialIndex: currentTrialIndex,
+      stepIndex: currentStepIndex
+    };
+    
+    // Add to local state
+    setResponses(prev => [...prev, responseData]);
+    
+    // Save to server
+    saveResponse(responseData);
+  };
+  
+  // Save response to server
+  const saveResponse = async (responseData) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        '/api/responses',
+        responseData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error saving response:", error);
+    }
   };
   
   // Handle moving to the next step
@@ -154,9 +300,16 @@ const ExperimentRun = () => {
       
       // Update experiment status to completed
       await axios.put(`/api/experiments/${id}`, 
-        { status: 'Completed' },
+        { 
+          status: 'Completed',
+          responses: responses,
+          experimentRunName: experimentName
+        },
         { headers: { Authorization: `Bearer ${token}` }}
       );
+      
+      // Stop EEG recording if it was started
+      await stopExperimentWithEEG();
       
       setIsCompleted(true);
       
@@ -177,6 +330,11 @@ const ExperimentRun = () => {
       } else if (document.msExitFullscreen) {
         document.msExitFullscreen();
       }
+    }
+    
+    // Stop EEG recording if it was started
+    if (eegRecordingStarted) {
+      stopExperimentWithEEG();
     }
     
     window.close(); // Close the window if it was opened as a new window
@@ -230,8 +388,86 @@ const ExperimentRun = () => {
   if (isCompleted) {
     return <ExperimentComplete 
       experimentName={experiment.name} 
+      experimentRunName={experimentName}
       onExit={exitExperiment} 
     />;
+  }
+  
+  // Experiment name prompt
+  if (showNamePrompt) {
+    return (
+      <div className="experiment-setup-container">
+        <div className="name-prompt-modal">
+          <h3>Name This Experiment Run</h3>
+          <p>Please enter a unique name for this experiment run to identify the data:</p>
+          
+          <div className="form-group">
+            <label htmlFor="experimentName">Experiment Run Name:</label>
+            <input
+              type="text"
+              id="experimentName"
+              className="form-control"
+              value={experimentName}
+              onChange={(e) => setExperimentName(e.target.value)}
+              placeholder="e.g., Subject01-Session01"
+              required
+            />
+          </div>
+          
+          <div className="modal-actions">
+            <button
+              className="btn-secondary"
+              onClick={handleCancelStart}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={startExperiment}
+              disabled={!experimentName.trim()}
+            >
+              Start Experiment
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Experiment setup - showing OpenBCI connection and start options
+  if (!experimentStarted) {
+    return (
+      <div className="experiment-setup-container">
+        <h2>Prepare to Run: {experiment.name}</h2>
+        
+        {/* OpenBCI Connection Component */}
+        <OpenBCIConnection onConnectionChange={handleOpenBCIConnectionChange} />
+        
+        <div className="experiment-info-card">
+          <h3>Experiment Information</h3>
+          <p><strong>Name:</strong> {experiment.name}</p>
+          <p><strong>Description:</strong> {experiment.description || 'No description provided'}</p>
+          <p><strong>Trials:</strong> {experiment.trials ? experiment.trials.length : 1}</p>
+          
+          <div className="experiment-actions">
+            <button 
+              className="btn-primary" 
+              onClick={handlePrepareStart} 
+              disabled={loading}
+            >
+              {loading ? 'Starting...' : 'Start Experiment'}
+            </button>
+            
+            <button 
+              className="btn-secondary" 
+              onClick={() => navigate('/experiments')}
+            >
+              Back to Experiments
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   const currentTrial = getCurrentTrial();
@@ -278,7 +514,8 @@ const ExperimentRun = () => {
         return (
           <QuestionStep 
             step={stepData} 
-            onComplete={moveToNextStep} 
+            onComplete={moveToNextStep}
+            onResponse={(response) => handleQuestionResponse(stepData._id, response)}
           />
         );
       default:
@@ -297,10 +534,27 @@ const ExperimentRun = () => {
     <div className="experiment-run">
       <div className="experiment-header">
         <h1>{experiment.name}</h1>
+        <h2 className="experiment-run-name">{experimentName}</h2>
         <div className="progress-info">
           <span>Trial {currentTrialIndex + 1} of {totalTrials}</span>
           <span>•</span>
           <span>Step {currentStepIndex + 1} of {totalSteps}</span>
+          {eegRecordingStarted ? (
+            <>
+              <span>•</span>
+              <span className="eeg-recording-status">EEG Recording Active</span>
+            </>
+          ) : isOpenBCIConnected ? (
+            <>
+              <span>•</span>
+              <span className="eeg-connected-status">EEG Connected (Not Recording)</span>
+            </>
+          ) : (
+            <>
+              <span>•</span>
+              <span className="eeg-disconnected-status">EEG Not Connected</span>
+            </>
+          )}
         </div>
       </div>
       

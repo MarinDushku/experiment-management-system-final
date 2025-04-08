@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const QuestionStep = ({ step, onComplete }) => {
+const QuestionStep = ({ step, onComplete, onResponse }) => {
   const [timeRemaining, setTimeRemaining] = useState(step.duration);
   const [answer, setAnswer] = useState("");
   const answerRef = useRef(null);
+  const [submitted, setSubmitted] = useState(false);
+  
+  // Log props for debugging
+  useEffect(() => {
+    console.log('QuestionStep rendered with step:', step);
+    console.log('onResponse available:', !!onResponse);
+  }, [step, onResponse]);
   
   // Set up timer when component mounts
   useEffect(() => {
@@ -36,8 +43,20 @@ const QuestionStep = ({ step, onComplete }) => {
   };
   
   const handleSubmit = () => {
-    // Here you could save the answer to backend if needed
+    if (submitted) return; // Prevent multiple submissions
+    
+    setSubmitted(true);
+    
+    // Log the answer
     console.log("Question answer:", answer);
+    
+    // Call onResponse if provided
+    if (onResponse && typeof onResponse === 'function') {
+      console.log("Sending response to ExperimentRun");
+      onResponse(answer);
+    } else {
+      console.warn("onResponse function not provided to QuestionStep");
+    }
     
     // Move to next step
     onComplete();
@@ -61,11 +80,13 @@ const QuestionStep = ({ step, onComplete }) => {
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               ref={answerRef}
+              disabled={submitted}
             />
             
             <button 
               className="btn-primary"
               onClick={handleSubmit}
+              disabled={submitted}
             >
               Submit Answer
             </button>

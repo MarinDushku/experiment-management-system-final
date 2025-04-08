@@ -28,6 +28,10 @@ const ExperimentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  eegRecordings: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'EEGRecording'
+  }],
   createdAt: {
     type: Date,
     default: Date.now

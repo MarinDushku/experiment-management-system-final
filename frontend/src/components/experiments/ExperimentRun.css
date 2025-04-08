@@ -1,322 +1,555 @@
 /* Full-screen layout */
 .experiment-run {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #f9f9f9;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    margin: 0;
-    overflow: hidden;
-    z-index: 1000;
-  }
-  
-  .experiment-header {
-    background-color: #3f51b5;
-    color: white;
-    text-align: center;
-    padding: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    z-index: 10;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.experiment-header {
+  background-color: #3f51b5;
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.experiment-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 500;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.step-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 2rem auto;
+  width: 90%;
+  max-width: 800px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.step-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.step-type {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(21, 101, 192, 0.1);
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+/* Style for different step types */
+.music-step, .rest-step, .question-step {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.music-icon, .rest-icon {
+  font-size: 5rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.music-step p, .rest-step p {
+  font-size: 1.25rem;
+  color: #333;
+  margin-bottom: 2rem;
+}
+
+.question-text {
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.question-form {
+  width: 100%;
+}
+
+.question-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  resize: vertical;
+  min-height: 150px;
+  transition: border-color 0.3s;
+}
+
+.question-input:focus {
+  border-color: #3f51b5;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.1);
+}
+
+/* Timer styling */
+.step-footer {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 2rem;
+  background-color: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+}
+
+.timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.time-remaining {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #333;
+  font-family: monospace;
+  animation: timerPulse 1s infinite alternate;
+}
+
+@keyframes timerPulse {
+  0% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+
+.timer-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+/* Exit button */
+.experiment-footer {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: #f5f5f5;
+  border-top: 1px solid #e0e0e0;
+}
+
+.exit-button {
+  background-color: transparent;
+  border: 1px solid #d32f2f;
+  color: #d32f2f;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.exit-button:hover {
+  background-color: #ffebee;
+}
+
+/* Button styles */
+.btn-primary, .btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background-color: #3f51b5;
+  color: white;
+  border: none;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+  background-color: #303f9f;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.play-button {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.5rem;
+}
+
+.play-button::before {
+  content: "▶";
+  margin-right: 0.5rem;
+}
+
+/* States */
+.loading-container, .error-container, .completion-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+  padding: 2rem;
+}
+
+.loading-container {
+  background-color: white;
+}
+
+.loading-spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3f51b5;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-container h2, .completion-container h2 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.completion-container {
+  background-color: #f5f9ff;
+}
+
+.completion-container p {
+  font-size: 1.2rem;
+  color: #555;
+  margin-bottom: 2rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.experiment-run {
+  animation: fadeIn 0.5s;
+}
+
+/* Additional for fullscreen mode */
+body.experiment-running {
+  overflow: hidden;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .step-container {
+    width: 95%;
+    margin: 1rem auto;
   }
   
   .experiment-header h1 {
-    margin: 0 0 0.5rem 0;
-    font-size: 2rem;
-    font-weight: 500;
-  }
-  
-  .progress-info {
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .step-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    margin: 2rem auto;
-    width: 90%;
-    max-width: 800px;
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-  }
-  
-  .step-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem 2rem;
-    background-color: #f5f5f5;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  
-  .step-header h2 {
-    margin: 0;
-    color: #333;
     font-size: 1.5rem;
   }
   
-  .step-type {
-    background-color: #e3f2fd;
-    color: #1565c0;
-    padding: 0.35rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(21, 101, 192, 0.1);
-  }
-  
-  .step-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 3rem 2rem;
-    text-align: center;
-  }
-  
-  /* Style for different step types */
-  .music-step, .rest-step, .question-step {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-  
-  .music-icon, .rest-icon {
-    font-size: 5rem;
-    margin-bottom: 1.5rem;
-    opacity: 0.9;
-    animation: pulse 2s infinite ease-in-out;
-  }
-  
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-  
-  .music-step p, .rest-step p {
-    font-size: 1.25rem;
-    color: #333;
-    margin-bottom: 2rem;
-  }
-  
-  .question-text {
-    font-size: 1.4rem;
-    margin-bottom: 2rem;
-    line-height: 1.6;
-    color: #333;
-  }
-  
-  .question-form {
-    width: 100%;
-  }
-  
-  .question-input {
-    width: 100%;
-    padding: 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    margin-bottom: 1.5rem;
-    resize: vertical;
-    min-height: 150px;
-    transition: border-color 0.3s;
-  }
-  
-  .question-input:focus {
-    border-color: #3f51b5;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.1);
-  }
-  
-  /* Timer styling */
-  .step-footer {
-    display: flex;
-    justify-content: center;
-    padding: 1.5rem 2rem;
-    background-color: #f5f5f5;
-    border-top: 1px solid #e0e0e0;
-  }
-  
-  .timer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  .step-header h2 {
+    font-size: 1.2rem;
   }
   
   .time-remaining {
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: #333;
-    font-family: monospace;
-    animation: timerPulse 1s infinite alternate;
-  }
-  
-  @keyframes timerPulse {
-    0% { opacity: 0.9; }
-    100% { opacity: 1; }
-  }
-  
-  .timer-label {
-    font-size: 0.9rem;
-    color: #666;
-    margin-top: 0.25rem;
-  }
-  
-  /* Exit button */
-  .experiment-footer {
-    display: flex;
-    justify-content: center;
-    padding: 1.5rem;
-    background-color: #f5f5f5;
-    border-top: 1px solid #e0e0e0;
-  }
-  
-  .exit-button {
-    background-color: transparent;
-    border: 1px solid #d32f2f;
-    color: #d32f2f;
-    padding: 0.75rem 1.5rem;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .exit-button:hover {
-    background-color: #ffebee;
-  }
-  
-  /* Button styles */
-  .btn-primary, .btn-secondary {
-    padding: 0.75rem 1.5rem;
-    border-radius: 4px;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .btn-primary {
-    background-color: #3f51b5;
-    color: white;
-    border: none;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  }
-  
-  .btn-primary:hover {
-    background-color: #303f9f;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-  
-  .play-button {
-    margin-top: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1.5rem;
-  }
-  
-  .play-button::before {
-    content: "▶";
-    margin-right: 0.5rem;
-  }
-  
-  /* States */
-  .loading-container, .error-container, .completion-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    height: 100%;
-    padding: 2rem;
-  }
-  
-  .loading-container {
-    background-color: white;
-  }
-  
-  .loading-spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3f51b5;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1.5rem;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  .error-container h2, .completion-container h2 {
-    color: #333;
-    margin-bottom: 1rem;
     font-size: 2rem;
   }
   
-  .completion-container {
-    background-color: #f5f9ff;
+  .music-icon, .rest-icon {
+    font-size: 4rem;
   }
   
-  .completion-container p {
+  .question-text {
     font-size: 1.2rem;
-    color: #555;
-    margin-bottom: 2rem;
   }
-  
-  /* Animations */
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  .experiment-run {
-    animation: fadeIn 0.5s;
-  }
-  
-  /* Additional for fullscreen mode */
-  body.experiment-running {
-    overflow: hidden;
-  }
-  
-  /* Responsive adjustments */
-  @media screen and (max-width: 768px) {
-    .step-container {
-      width: 95%;
-      margin: 1rem auto;
-    }
-    
-    .experiment-header h1 {
-      font-size: 1.5rem;
-    }
-    
-    .step-header h2 {
-      font-size: 1.2rem;
-    }
-    
-    .time-remaining {
-      font-size: 2rem;
-    }
-    
-    .music-icon, .rest-icon {
-      font-size: 4rem;
-    }
-    
-    .question-text {
-      font-size: 1.2rem;
-    }
-  }
+}
+
+/* OpenBCI specific styles */
+
+/* Setup container */
+.experiment-setup-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+}
+
+.experiment-setup-container h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #3f51b5;
+}
+
+/* OpenBCI Connection styles */
+.openbci-connection {
+  margin-bottom: 2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.openbci-connection .card-header {
+  background-color: #f5f5f5;
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+}
+
+.openbci-connection .card-body {
+  padding: 1.5rem;
+}
+
+.openbci-connection .alert {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+}
+
+.openbci-connection .alert-success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.openbci-connection .alert-warning {
+  background-color: #fff8e1;
+  color: #f57f17;
+  border: 1px solid #ffecb3;
+}
+
+.openbci-connection .alert-danger {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+.openbci-connection .fa-check-circle {
+  color: #2e7d32;
+  margin-right: 0.5rem;
+}
+
+.openbci-connection .fa-exclamation-triangle {
+  color: #f57f17;
+  margin-right: 0.5rem;
+}
+
+/* Experiment info card */
+.experiment-info-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  background-color: white;
+}
+
+.experiment-info-card h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #3f51b5;
+}
+
+.experiment-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #3f51b5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* EEG Recording indicator */
+.eeg-recording-status {
+  color: #f44336;
+  display: flex;
+  align-items: center;
+  animation: recordingPulse 2s infinite;
+}
+
+.eeg-recording-status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #f44336;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+@keyframes recordingPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* EEG status indicators */
+.eeg-recording-status {
+  color: #f44336;
+  display: flex;
+  align-items: center;
+  animation: recordingPulse 2s infinite;
+}
+
+.eeg-recording-status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #f44336;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.eeg-connected-status {
+  color: #4caf50;
+  display: flex;
+  align-items: center;
+}
+
+.eeg-connected-status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #4caf50;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.eeg-disconnected-status {
+  color: #9e9e9e;
+  display: flex;
+  align-items: center;
+}
+
+.eeg-disconnected-status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #9e9e9e;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+@keyframes recordingPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+/* Add to ExperimentRun.css */
+.name-prompt-modal {
+  background-color: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 90%;
+  margin: 0 auto;
+}
+
+.name-prompt-modal h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #3f51b5;
+}
+
+.name-prompt-modal p {
+  margin-bottom: 1.5rem;
+}
+
+.experiment-run-name {
+  font-size: 1.2rem;
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
