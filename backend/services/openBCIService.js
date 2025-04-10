@@ -4,8 +4,14 @@ const path = require('path');
 
 class OpenBCIService {
     constructor() {
-        this.pythonPath = 'python'; // Use 'python3' for Unix-based systems if necessary
-        this.scriptPath = path.join(__dirname, '..', 'python', 'openbci_bridge.py');
+        // Updated Python path to point directly to your Python installation
+        this.pythonPath = 'C:\\Program Files\\Python312\\python.exe'; // Your Python executable
+        this.scriptPath = 'C:\\Users\\dushk\\Desktop\\experiment-management-system\\backend\\python\\openbci_bridge.py'; // Full path to the Python script
+        
+        // Log the paths for debugging
+        console.log('Python executable path:', this.pythonPath);
+        console.log('Python script path:', this.scriptPath);
+        
         this.serialPort = null;
         this.isConnected = false;
     }
@@ -30,27 +36,43 @@ class OpenBCIService {
             
             // Collect output data
             process.stdout.on('data', (data) => {
-                outputData += data.toString();
+                const output = data.toString();
+                console.log(`Python stdout: ${output}`);
+                outputData += output;
             });
             
             // Collect error data
             process.stderr.on('data', (data) => {
-                errorData += data.toString();
-                console.error(`Python error: ${data}`);
+                const error = data.toString();
+                console.error(`Python stderr: ${error}`);
+                errorData += error;
             });
             
             // Handle process completion
             process.on('close', (code) => {
+                console.log(`Python process exited with code ${code}`);
+                
                 if (code !== 0) {
-                    console.error(`Python process exited with code ${code}`);
+                    console.error(`Process exited with code ${code}: ${errorData}`);
                     return reject(new Error(`Process exited with code ${code}: ${errorData}`));
                 }
                 
                 try {
-                    const result = JSON.parse(outputData);
+                    // Find the JSON data in the output (it might be mixed with debug messages)
+                    let jsonData = outputData;
+                    const jsonStartIndex = outputData.indexOf('{');
+                    const jsonEndIndex = outputData.lastIndexOf('}');
+                    
+                    if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+                        jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+                    }
+                    
+                    console.log(`Parsed JSON data: ${jsonData}`);
+                    const result = JSON.parse(jsonData);
                     resolve(result);
                 } catch (error) {
                     console.error('Error parsing Python output:', error);
+                    console.error('Raw output:', outputData);
                     reject(new Error(`Error parsing Python output: ${error.message}`));
                 }
             });
@@ -64,18 +86,59 @@ class OpenBCIService {
     }
 
     /**
+     * Scan for available OpenBCI devices on common COM ports
+     * @returns {Promise<Object>} - Scan results
+     */
+    async scanPorts() {
+        const commonPorts = ['COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'];
+        console.log('Scanning common COM ports for OpenBCI devices...');
+        
+        for (const port of commonPorts) {
+            try {
+                console.log(`Trying port: ${port}`);
+                const result = await this.executePythonScript({
+                    action: 'connect',
+                    serial_port: port
+                });
+                
+                if (result.status === 'success') {
+                    console.log(`Found OpenBCI device on port: ${port}`);
+                    this.serialPort = port;
+                    this.isConnected = true;
+                    return {
+                        status: 'success',
+                        message: `Found OpenBCI device on port: ${port}`,
+                        port: port,
+                        data: result
+                    };
+                }
+            } catch (error) {
+                console.log(`No device found on port: ${port}`);
+            }
+        }
+        
+        return {
+            status: 'error',
+            message: 'No OpenBCI device found on common COM ports'
+        };
+    }
+
+    /**
      * Connect to the OpenBCI device
      * @param {string} serialPort - Serial port name (e.g. COM3 on Windows, /dev/ttyUSB0 on Linux)
      * @returns {Promise<Object>} - Connection result
      */
     async connect(serialPort) {
         try {
+            console.log(`Attempting to connect to OpenBCI on port: ${serialPort}`);
             this.serialPort = serialPort;
             
             const result = await this.executePythonScript({
                 action: 'connect',
                 serial_port: serialPort
             });
+            
+            console.log(`Connection result: ${JSON.stringify(result)}`);
             
             this.isConnected = (result.status === 'success');
             return result;
@@ -87,19 +150,47 @@ class OpenBCIService {
     }
 
     /**
+     * Reset the board connection
+     * @returns {Promise<Object>} - Reset result
+     */
+    async resetBoard() {
+        try {
+            if (!this.serialPort) {
+                throw new Error('No serial port set');
+            }
+            
+            // First disconnect
+            await this.disconnect();
+            
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Try to connect again
+            return await this.connect(this.serialPort);
+        } catch (error) {
+            console.error('Error resetting board:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Check if the OpenBCI board is connected
      * @returns {Promise<boolean>} - Whether the board is connected
      */
     async checkConnection() {
         try {
             if (!this.serialPort) {
+                console.log('No serial port set, returning not connected');
                 return { connected: false };
             }
             
+            console.log(`Checking connection on port: ${this.serialPort}`);
             const result = await this.executePythonScript({
                 action: 'check_connection',
                 serial_port: this.serialPort
             });
+            
+            console.log(`Check connection result: ${JSON.stringify(result)}`);
             
             this.isConnected = (result.status === 'success' && result.connected);
             return result;
@@ -120,10 +211,13 @@ class OpenBCIService {
                 throw new Error('OpenBCI device not connected');
             }
             
+            console.log(`Starting recording on port: ${this.serialPort}`);
             const result = await this.executePythonScript({
                 action: 'start_recording',
                 serial_port: this.serialPort
             });
+            
+            console.log(`Start recording result: ${JSON.stringify(result)}`);
             
             return result;
         } catch (error) {
@@ -149,6 +243,7 @@ class OpenBCIService {
             const timestamp = new Date().toISOString().replace(/:/g, '-');
             const filename = `eeg_${experimentName || 'unnamed'}_${timestamp}.csv`;
             
+            console.log(`Stopping recording on port: ${this.serialPort}, experiment: ${experimentId}, filename: ${filename}`);
             const result = await this.executePythonScript({
                 action: 'stop_recording',
                 serial_port: this.serialPort,
@@ -156,6 +251,8 @@ class OpenBCIService {
                 duration: duration,
                 output_file: filename
             });
+            
+            console.log(`Stop recording result: ${JSON.stringify(result)}`);
             
             return {
                 ...result,
@@ -178,10 +275,13 @@ class OpenBCIService {
                 return { status: 'success', message: 'Already disconnected' };
             }
             
+            console.log(`Disconnecting from port: ${this.serialPort}`);
             const result = await this.executePythonScript({
                 action: 'disconnect',
                 serial_port: this.serialPort
             });
+            
+            console.log(`Disconnect result: ${JSON.stringify(result)}`);
             
             this.isConnected = false;
             this.serialPort = null;

@@ -3,7 +3,7 @@ import axios from 'axios';
 import './OpenBCIConnection.css';
 
 const OpenBCIConnection = ({ onConnectionChange }) => {
-    const [serialPort, setSerialPort] = useState('/dev/ttyUSB0');
+    const [serialPort, setSerialPort] = useState('COM3'); // Default to COM3 for Windows
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -40,6 +40,75 @@ const OpenBCIConnection = ({ onConnectionChange }) => {
         } catch (error) {
             console.error("Error checking OpenBCI connection status:", error);
             setError("Error checking connection status");
+        }
+    };
+
+    const handleDirectConnect = async () => {
+        // Clear any previous messages
+        setError('');
+        setSuccess('');
+        setIsLoading(true);
+        
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post('/api/openbci/direct-connect', 
+                { serialPort }, 
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            
+            if (response.data.success) {
+                setSuccess("Successfully connected to OpenBCI device using direct method");
+                setIsConnected(true);
+                
+                // Notify parent component about connection
+                if (onConnectionChange) {
+                    onConnectionChange(true);
+                }
+            } else {
+                setError("Failed to connect to OpenBCI device");
+            }
+        } catch (error) {
+            console.error("Error with direct connection to OpenBCI device:", error);
+            setError(error.response?.data?.message || "Error connecting to OpenBCI device");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const scanForDevices = async () => {
+        setIsLoading(true);
+        setError('');
+        setSuccess('');
+        
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('/api/openbci/scan', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            
+            if (response.data.status === 'success') {
+                setSuccess(`Found OpenBCI device on port: ${response.data.port}`);
+                setSerialPort(response.data.port);
+                setIsConnected(true);
+                
+                // Notify parent component about connection
+                if (onConnectionChange) {
+                    onConnectionChange(true);
+                }
+            } else {
+                setError('No OpenBCI device found. Please check your connection.');
+            }
+        } catch (error) {
+            console.error("Error scanning for OpenBCI devices:", error);
+            setError(error.response?.data?.message || "Error scanning for OpenBCI devices");
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -160,13 +229,52 @@ const OpenBCIConnection = ({ onConnectionChange }) => {
                             <span>OpenBCI device is not connected</span>
                         </div>
                         
-                        <button 
-                            className="btn connect-btn"
-                            onClick={() => setShowModal(true)}
-                        >
-                            <i className="icon-connect"></i>
-                            <span>Connect to OpenBCI Device</span>
-                        </button>
+                        <div className="button-group">
+                            <button 
+                                className="btn connect-btn"
+                                onClick={() => setShowModal(true)}
+                                disabled={isLoading}
+                            >
+                                <i className="icon-connect"></i>
+                                <span>Connect to OpenBCI Device</span>
+                            </button>
+                            
+                            <button 
+                                className="btn direct-connect-btn"
+                                onClick={handleDirectConnect}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="spinner"></div>
+                                        <span>Connecting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="icon-direct-connect"></i>
+                                        <span>Direct Connect to COM3</span>
+                                    </>
+                                )}
+                            </button>
+                            
+                            <button 
+                                className="btn scan-btn"
+                                onClick={scanForDevices}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <div className="spinner"></div>
+                                        <span>Scanning...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="icon-scan"></i>
+                                        <span>Scan for OpenBCI Devices</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </>
                 )}
                 
