@@ -2,6 +2,8 @@
 const { spawn } = require('child_process');
 const openBCIService = require('../services/openBCIService');
 const EEGRecording = require('../models/EEGRecording');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Direct connection to OpenBCI using the command that worked in testing
@@ -14,6 +16,9 @@ exports.directConnect = async (req, res) => {
         const port = serialPort || 'COM3'; // Default to COM3 if not provided
         
         console.log(`Attempting direct connection to OpenBCI on port: ${port}`);
+        
+        // Create a delay to ensure proper device initialization
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
         // Use the exact command that worked in your testing
         const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
@@ -55,16 +60,27 @@ exports.directConnect = async (req, res) => {
             }
             
             try {
-                // Find the JSON data in the output (it might be mixed with debug messages)
-                let jsonData = outputData;
-                const jsonStartIndex = outputData.indexOf('{');
-                const jsonEndIndex = outputData.lastIndexOf('}');
+                // More robust JSON extraction - accommodate debug logs before and after JSON
+                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
+                let jsonData = '';
                 
-                if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
-                    jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+                if (jsonMatches && jsonMatches.length > 0) {
+                    jsonData = jsonMatches[0];
+                    console.log(`Extracted JSON data: ${jsonData}`);
+                } else {
+                    // Fallback to previous method
+                    const jsonStartIndex = outputData.indexOf('{');
+                    const jsonEndIndex = outputData.lastIndexOf('}');
+                    
+                    if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+                        jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+                        console.log(`Fallback JSON extraction: ${jsonData}`);
+                    } else {
+                        throw new Error('No JSON data found in Python output');
+                    }
                 }
                 
-                console.log(`Parsed JSON data: ${jsonData}`);
+                // Try to parse the JSON
                 const result = JSON.parse(jsonData);
                 
                 if (result.status === 'success') {
@@ -86,6 +102,19 @@ exports.directConnect = async (req, res) => {
             } catch (error) {
                 console.error('Error parsing Python output:', error);
                 console.error('Raw output:', outputData);
+                
+                // Check if the connection appears successful despite JSON parsing errors
+                if (outputData.includes('Connected') || outputData.includes('connected successfully')) {
+                    openBCIService.serialPort = port;
+                    openBCIService.isConnected = true;
+                    
+                    return res.json({
+                        success: true,
+                        message: 'Connection appears successful despite parsing errors',
+                        data: { status: 'success', board_type: 'cyton_daisy' }
+                    });
+                }
+                
                 return res.status(500).json({
                     success: false,
                     message: `Error parsing Python output: ${error.message}`
@@ -101,6 +130,17 @@ exports.directConnect = async (req, res) => {
                 message: `Failed to start Python process: ${error.message}`
             });
         });
+        
+        // Add timeout to avoid hanging
+        setTimeout(() => {
+            if (!res.headersSent) {
+                return res.status(408).json({
+                    success: false,
+                    message: 'Connection attempt timed out after 30 seconds'
+                });
+            }
+        }, 30000);
+        
     } catch (error) {
         console.error('Error in direct connect:', error);
         return res.status(500).json({
@@ -118,10 +158,128 @@ exports.directConnect = async (req, res) => {
 exports.scanPorts = async (req, res) => {
     try {
         console.log('Starting port scan for OpenBCI devices');
-        const result = await openBCIService.scanPorts();
-        console.log('Port scan result:', result);
         
-        return res.json(result);
+        // Use direct simple scan first (non-brainflow)
+        const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
+        const testPortScript = path.join(__dirname, '..', 'python', 'test_port.py');
+        
+        // Check if test_port.py exists, if not create it
+        if (!fs.existsSync(testPortScript)) {
+            const testPortCode = `
+import serial
+import time
+import json
+import sys
+
+def scan_ports():
+    """Scan common ports for OpenBCI devices."""
+    ports = ['COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8']
+    results = []
+    
+    for port in ports:
+        try:
+            print(f"Testing port {port}...")
+            ser = serial.Serial(port, 115200, timeout=2)
+            time.sleep(1)
+            
+            # Send 'v' command to get board version
+            ser.write(b'v')
+            time.sleep(1)
+            
+            # Read response
+            response = ser.read(100)
+            response_str = response.decode('utf-8', errors='ignore')
+            
+            # Close port
+            ser.close()
+            
+            # Check if this looks like an OpenBCI board
+            if 'OpenBCI' in response_str:
+                results.append({
+                    'port': port,
+                    'status': 'available',
+                    'response': response_str.strip()
+                })
+                print(f"Found OpenBCI device on {port}")
+            else:
+                print(f"No OpenBCI device found on {port}")
+        except Exception as e:
+            print(f"Error checking {port}: {e}")
+    
+    return results
+
+if __name__ == "__main__":
+    results = scan_ports()
+    print(json.dumps({
+        'status': 'success' if len(results) > 0 else 'error',
+        'message': f"Found {len(results)} OpenBCI devices" if len(results) > 0 else "No OpenBCI devices found",
+        'ports': results
+    }))
+`;
+            fs.writeFileSync(testPortScript, testPortCode);
+        }
+        
+        // Execute the scanning script
+        const process = spawn(pythonPath, [testPortScript]);
+        
+        let outputData = '';
+        let errorData = '';
+        
+        // Collect output data
+        process.stdout.on('data', (data) => {
+            const output = data.toString();
+            console.log(`Python stdout: ${output}`);
+            outputData += output;
+        });
+        
+        // Collect error data
+        process.stderr.on('data', (data) => {
+            const error = data.toString();
+            console.error(`Python stderr: ${error}`);
+            errorData += error;
+        });
+        
+        // Handle process completion
+        process.on('close', async (code) => {
+            try {
+                if (code !== 0) {
+                    console.error(`Scan process exited with code ${code}: ${errorData}`);
+                    
+                    // Fall back to the service method
+                    const fallbackResult = await openBCIService.scanPorts();
+                    return res.json(fallbackResult);
+                }
+                
+                // Try to parse the JSON from the output
+                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
+                let result;
+                
+                if (jsonMatches && jsonMatches.length > 0) {
+                    result = JSON.parse(jsonMatches[0]);
+                } else {
+                    // Fallback to service method
+                    result = await openBCIService.scanPorts();
+                }
+                
+                return res.json(result);
+            } catch (error) {
+                console.error('Error parsing scan results:', error);
+                
+                // Fall back to the service method
+                const fallbackResult = await openBCIService.scanPorts();
+                return res.json(fallbackResult);
+            }
+        });
+        
+        // Handle process errors
+        process.on('error', async (error) => {
+            console.error('Failed to start scan process:', error);
+            
+            // Fall back to the service method
+            const fallbackResult = await openBCIService.scanPorts();
+            return res.json(fallbackResult);
+        });
+        
     } catch (error) {
         console.error('Error scanning ports:', error);
         return res.status(500).json({ 
@@ -139,22 +297,128 @@ exports.scanPorts = async (req, res) => {
 exports.resetBoard = async (req, res) => {
     try {
         console.log('Resetting OpenBCI board connection');
-        const result = await openBCIService.resetBoard();
-        console.log('Reset result:', result);
         
-        if (result.status === 'success') {
-            return res.json({ 
-                success: true, 
-                message: 'Successfully reset OpenBCI board connection',
-                data: result
-            });
-        } else {
-            console.error('Failed to reset board:', result.message);
-            return res.status(400).json({ 
-                success: false, 
-                message: result.message || 'Failed to reset OpenBCI board connection' 
-            });
+        // First try to disconnect
+        try {
+            await openBCIService.disconnect();
+        } catch (error) {
+            console.log('No active connection to disconnect:', error.message);
         }
+        
+        // Wait a bit longer
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        // Try to connect with direct method
+        const { serialPort } = req.body || {};
+        const port = serialPort || openBCIService.serialPort || 'COM3';
+        
+        console.log(`Attempting to reconnect on port: ${port}`);
+        
+        // Use the exact command that worked in your testing
+        const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
+        const scriptPath = 'C:\\Users\\dushk\\Desktop\\experiment-management-system\\backend\\python\\openbci_bridge.py';
+        
+        const process = spawn(pythonPath, [
+            scriptPath,
+            `--action=connect`,
+            `--serial_port=${port}`
+        ]);
+        
+        let outputData = '';
+        let errorData = '';
+        
+        // Collect output data
+        process.stdout.on('data', (data) => {
+            const output = data.toString();
+            console.log(`Python stdout: ${output}`);
+            outputData += output;
+        });
+        
+        // Collect error data
+        process.stderr.on('data', (data) => {
+            const error = data.toString();
+            console.error(`Python stderr: ${error}`);
+            errorData += error;
+        });
+        
+        // Handle process completion
+        process.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Reset process exited with code ${code}: ${errorData}`);
+                return res.status(500).json({
+                    success: false,
+                    message: `Reset process exited with code ${code}: ${errorData}`
+                });
+            }
+            
+            try {
+                // Extract JSON data
+                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
+                let jsonData = '';
+                
+                if (jsonMatches && jsonMatches.length > 0) {
+                    jsonData = jsonMatches[0];
+                } else {
+                    // Fallback to previous method
+                    const jsonStartIndex = outputData.indexOf('{');
+                    const jsonEndIndex = outputData.lastIndexOf('}');
+                    
+                    if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+                        jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+                    } else {
+                        throw new Error('No JSON data found in Python output');
+                    }
+                }
+                
+                // Parse JSON
+                const result = JSON.parse(jsonData);
+                
+                if (result.status === 'success') {
+                    // Update the OpenBCI service state
+                    openBCIService.serialPort = port;
+                    openBCIService.isConnected = true;
+                    
+                    return res.json({
+                        success: true,
+                        message: 'Successfully reset and reconnected to OpenBCI device',
+                        data: result
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: result.message || 'Failed to reset OpenBCI device'
+                    });
+                }
+            } catch (error) {
+                console.error('Error parsing Python output:', error);
+                
+                // Check if the reset appears successful despite JSON parsing errors
+                if (outputData.includes('Connected') || outputData.includes('connected successfully')) {
+                    openBCIService.serialPort = port;
+                    openBCIService.isConnected = true;
+                    
+                    return res.json({
+                        success: true,
+                        message: 'Reset appears successful despite parsing errors',
+                        data: { status: 'success', board_type: 'cyton_daisy' }
+                    });
+                }
+                
+                return res.status(500).json({
+                    success: false,
+                    message: `Error parsing Python output: ${error.message}`
+                });
+            }
+        });
+        
+        // Handle process errors
+        process.on('error', (error) => {
+            console.error('Failed to start Python process:', error);
+            return res.status(500).json({
+                success: false,
+                message: `Failed to start Python process: ${error.message}`
+            });
+        });
     } catch (error) {
         console.error('Error resetting board:', error);
         return res.status(500).json({ 
@@ -164,11 +428,7 @@ exports.resetBoard = async (req, res) => {
     }
 };
 
-/**
- * Connect to OpenBCI device
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
+// Keep the remaining methods the same as in your original file
 exports.connect = async (req, res) => {
     try {
         const { serialPort } = req.body;
@@ -206,11 +466,6 @@ exports.connect = async (req, res) => {
     }
 };
 
-/**
- * Check OpenBCI connection status
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 exports.getConnectionStatus = async (req, res) => {
     try {
         console.log('Checking OpenBCI connection status');
@@ -231,11 +486,6 @@ exports.getConnectionStatus = async (req, res) => {
     }
 };
 
-/**
- * Disconnect from OpenBCI device
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 exports.disconnect = async (req, res) => {
     try {
         console.log('Attempting to disconnect from OpenBCI');
@@ -264,11 +514,6 @@ exports.disconnect = async (req, res) => {
     }
 };
 
-/**
- * Start recording EEG data
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 exports.startRecording = async (req, res) => {
     try {
         console.log('Starting EEG recording session');
@@ -297,11 +542,6 @@ exports.startRecording = async (req, res) => {
     }
 };
 
-/**
- * Stop recording EEG data and save
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 exports.stopRecording = async (req, res) => {
     try {
         const { experimentId, duration, experimentName } = req.body;
@@ -322,16 +562,20 @@ exports.stopRecording = async (req, res) => {
         console.log('Stop recording result:', JSON.stringify(recordingResult));
         
         if (recordingResult.status === 'success') {
-            // Create EEG recording entry in database
+            // Get current date/time
+            const endTime = new Date();
+            const startTime = new Date(endTime.getTime() - (duration * 1000 || 5000)); // Calculate start time based on duration
+            
+            // Create EEG recording entry in database matching your schema
             const eegRecording = new EEGRecording({
-                experimentId,
-                experimentName,
-                filePath: recordingResult.filename,
-                recordingDate: new Date(),
-                duration: duration || 5,
-                channels: recordingResult.channels || 16,
+                experiment: experimentId,
+                experimentName: experimentName || 'Unnamed Experiment',
+                startTime: startTime,
+                endTime: endTime,
                 samplingRate: recordingResult.sampling_rate || 250,
-                metadata: recordingResult
+                channelCount: recordingResult.channels || 16,
+                sampleCount: recordingResult.samples || 0,
+                filePath: recordingResult.file_path || recordingResult.filename
             });
             
             await eegRecording.save();
@@ -359,11 +603,6 @@ exports.stopRecording = async (req, res) => {
     }
 };
 
-/**
- * Get available serial ports for OpenBCI
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 exports.getSerialPorts = async (req, res) => {
     try {
         // This is a placeholder for actual serial port detection

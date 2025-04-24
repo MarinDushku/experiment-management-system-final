@@ -20,6 +20,7 @@ app.use('/api/steps', require('./routes/steps'));
 app.use('/api/trials', require('./routes/trials'));
 app.use('/api/experiments', require('./routes/experiments'));
 app.use('/api/responses', require('./routes/responses'));
+app.use('/api/openbci', require('./routes/openBCI'));
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Add a simple test route
@@ -69,4 +70,13 @@ app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
+});
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: err.message || 'Unexpected server error',
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
