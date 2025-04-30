@@ -5,9 +5,9 @@ const fs = require('fs');
 
 class OpenBCIService {
     constructor() {
-        // Updated Python path to point directly to your Python installation
-        this.pythonPath = 'C:\\Program Files\\Python312\\python.exe'; // Your Python executable
-        this.scriptPath = 'C:\\Users\\dushk\\Desktop\\experiment-management-system\\backend\\python\\openbci_bridge.py'; // Full path to the Python script
+        // Use system Python instead of hardcoded path
+        this.pythonPath = 'python';
+        this.scriptPath = path.join(__dirname, '..', 'python', 'openbci_bridge.py');
         
         // Log the paths for debugging
         console.log('Python executable path:', this.pythonPath);

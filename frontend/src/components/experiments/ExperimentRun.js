@@ -129,14 +129,15 @@ const ExperimentRun = () => {
     try {
       setLoading(true);
       
-      // Check OpenBCI connection status
+      // Always try to start EEG recording if OpenBCI is connected
       if (isOpenBCIConnected) {
         // Try to start EEG recording
         const token = localStorage.getItem('token');
         try {
+          console.log("Starting EEG recording automatically...");
           const response = await axios.post(
             `/api/openbci/experiment/${id}/start`, 
-            { experimentRunName: experimentName }, 
+            { experimentName: experimentName }, // Pass experiment name to identify the recording
             {
               headers: {
                 Authorization: `Bearer ${token}`
@@ -145,6 +146,7 @@ const ExperimentRun = () => {
           );
           
           if (response.data.success) {
+            console.log("EEG recording started successfully");
             setEegRecordingStarted(true);
           } else {
             console.warn("Failed to start EEG recording, but continuing experiment.");
@@ -168,29 +170,29 @@ const ExperimentRun = () => {
   };
   
   // Stop EEG recording when experiment is completed
- // Update in ExperimentRun.js - stopExperimentWithEEG function
   const stopExperimentWithEEG = async () => {
     try {
       // Only stop if experiment was started with EEG
       if (experimentStarted && eegRecordingStarted) {
+        console.log("Automatically stopping EEG recording at experiment completion");
         const token = localStorage.getItem('token');
         await axios.post(
           `/api/openbci/experiment/${id}/stop`, 
           { 
-           duration: 5, // Default duration to collect final data
-           experimentName: experimentName  // Pass experiment name
+            duration: 5, // Default duration to collect final data
+            experimentName: experimentName  // Pass experiment name to identify recording
           }, 
           {
             headers: {
-             Authorization: `Bearer ${token}`
-           }
-         }
-       );
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
         setEegRecordingStarted(false);
-     }
-   } catch (error) {
-     console.error("Error stopping experiment with EEG:", error);
-   }
+      }
+    } catch (error) {
+      console.error("Error stopping experiment with EEG:", error);
+    }
   };
   
   // Get the current trial and step
@@ -299,6 +301,11 @@ const ExperimentRun = () => {
     try {
       const token = localStorage.getItem('token');
       
+      // Stop EEG recording if it was started
+      if (eegRecordingStarted) {
+        await stopExperimentWithEEG();
+      }
+      
       // Update experiment status to completed
       await axios.put(`/api/experiments/${id}`, 
         { 
@@ -308,9 +315,6 @@ const ExperimentRun = () => {
         },
         { headers: { Authorization: `Bearer ${token}` }}
       );
-      
-      // Stop EEG recording if it was started
-      await stopExperimentWithEEG();
       
       setIsCompleted(true);
       

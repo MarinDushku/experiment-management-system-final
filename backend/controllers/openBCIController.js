@@ -5,6 +5,9 @@ const EEGRecording = require('../models/EEGRecording');
 const path = require('path');
 const fs = require('fs');
 
+// Define the script path using path.join for cross-platform compatibility
+const scriptPath = path.join(__dirname, '..', 'python', 'openbci_bridge.py');
+
 /**
  * Direct connection to OpenBCI using the command that worked in testing
  * @param {Object} req - Express request object
@@ -20,9 +23,8 @@ exports.directConnect = async (req, res) => {
         // Create a delay to ensure proper device initialization
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Use the exact command that worked in your testing
-        const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
-        const scriptPath = 'C:\\Users\\dushk\\Desktop\\experiment-management-system\\backend\\python\\openbci_bridge.py';
+        // Try to use 'python' command from PATH first
+        const pythonPath = 'python';
         
         const process = spawn(pythonPath, [
             scriptPath,
@@ -160,7 +162,7 @@ exports.scanPorts = async (req, res) => {
         console.log('Starting port scan for OpenBCI devices');
         
         // Use direct simple scan first (non-brainflow)
-        const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
+        const pythonPath = 'python';
         const testPortScript = path.join(__dirname, '..', 'python', 'test_port.py');
         
         // Check if test_port.py exists, if not create it
@@ -314,9 +316,8 @@ exports.resetBoard = async (req, res) => {
         
         console.log(`Attempting to reconnect on port: ${port}`);
         
-        // Use the exact command that worked in your testing
-        const pythonPath = 'C:\\Program Files\\Python312\\python.exe';
-        const scriptPath = 'C:\\Users\\dushk\\Desktop\\experiment-management-system\\backend\\python\\openbci_bridge.py';
+        // Use python command from PATH
+        const pythonPath = 'python';
         
         const process = spawn(pythonPath, [
             scriptPath,
