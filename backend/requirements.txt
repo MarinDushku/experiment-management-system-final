@@ -1,0 +1,6 @@
+brainflow
+numpy
+matplotlib
+scipy
+pandas
+websockets

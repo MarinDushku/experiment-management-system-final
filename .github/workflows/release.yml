@@ -1,0 +1,320 @@
+name: Release and Deployment
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
+  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      backend-digest: ${{ steps.build-backend.outputs.digest }}
+      frontend-digest: ${{ steps.build-frontend.outputs.digest }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for backend
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Extract metadata for frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push backend image
+      id: build-backend
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.backend
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push frontend image
+      id: build-frontend
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  sign-images:
+    name: Sign Container Images
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Sign backend image
+      run: |
+        cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}@${{ needs.build-and-push.outputs.backend-digest }}
+
+    - name: Sign frontend image
+      run: |
+        cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}@${{ needs.build-and-push.outputs.frontend-digest }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push, sign-images]
+    if: github.event.inputs.environment == 'staging' || (github.event_name == 'release' && contains(github.ref, 'rc'))
+    environment:
+      name: staging
+      url: https://staging.experiment-system.com
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region us-west-2 --name experiment-staging-cluster
+
+    - name: Deploy to Staging
+      run: |
+        # Update deployment manifests with new image tags
+        sed -i "s|image: .*backend.*|image: ${{ needs.build-and-push.outputs.backend-image }}|g" k8s/staging/backend-deployment.yaml
+        sed -i "s|image: .*frontend.*|image: ${{ needs.build-and-push.outputs.frontend-image }}|g" k8s/staging/frontend-deployment.yaml
+        
+        # Apply Kubernetes manifests
+        kubectl apply -f k8s/staging/
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/backend-deployment -n staging --timeout=600s
+        kubectl rollout status deployment/frontend-deployment -n staging --timeout=600s
+
+    - name: Run Smoke Tests
+      run: |
+        # Wait for services to be ready
+        kubectl wait --for=condition=ready pod -l app=backend -n staging --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=frontend -n staging --timeout=300s
+        
+        # Run basic health checks
+        BACKEND_URL=$(kubectl get service backend-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        FRONTEND_URL=$(kubectl get service frontend-service -n staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        
+        curl -f http://$BACKEND_URL/api/test || exit 1
+        curl -f http://$FRONTEND_URL || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, sign-images]
+    if: github.event.inputs.environment == 'production' || (github.event_name == 'release' && !contains(github.ref, 'rc'))
+    environment:
+      name: production
+      url: https://experiment-system.com
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region us-west-2 --name experiment-production-cluster
+
+    - name: Create Database Backup
+      run: |
+        # Create backup before deployment
+        kubectl create job --from=cronjob/mongodb-backup mongodb-backup-$(date +%s) -n production
+
+    - name: Deploy to Production
+      run: |
+        # Update deployment manifests with new image tags
+        sed -i "s|image: .*backend.*|image: ${{ needs.build-and-push.outputs.backend-image }}|g" k8s/production/backend-deployment.yaml
+        sed -i "s|image: .*frontend.*|image: ${{ needs.build-and-push.outputs.frontend-image }}|g" k8s/production/frontend-deployment.yaml
+        
+        # Apply Kubernetes manifests with rolling update strategy
+        kubectl apply -f k8s/production/
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/backend-deployment -n production --timeout=600s
+        kubectl rollout status deployment/frontend-deployment -n production --timeout=600s
+
+    - name: Run Production Health Checks
+      run: |
+        # Wait for services to be ready
+        kubectl wait --for=condition=ready pod -l app=backend -n production --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=frontend -n production --timeout=300s
+        
+        # Run comprehensive health checks
+        BACKEND_URL=$(kubectl get service backend-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        FRONTEND_URL=$(kubectl get service frontend-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        
+        # Backend health checks
+        curl -f http://$BACKEND_URL/api/test || exit 1
+        curl -f http://$BACKEND_URL/api/auth/status || exit 1
+        
+        # Frontend health check
+        curl -f http://$FRONTEND_URL || exit 1
+        
+        # Database connectivity check
+        kubectl exec deployment/backend-deployment -n production -- npm run db:check
+
+    - name: Update Release Notes
+      if: github.event_name == 'release'
+      run: |
+        echo "Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "Backend Image: ${{ needs.build-and-push.outputs.backend-image }}" >> $GITHUB_STEP_SUMMARY
+        echo "Frontend Image: ${{ needs.build-and-push.outputs.frontend-image }}" >> $GITHUB_STEP_SUMMARY
+
+  post-deployment:
+    name: Post-Deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+
+    steps:
+    - name: Run Performance Tests
+      run: |
+        # Run performance tests against deployed environment
+        echo "Running performance tests..."
+        # Add performance testing commands here
+
+    - name: Update Documentation
+      if: github.event_name == 'release'
+      run: |
+        # Update deployment documentation
+        echo "Updating deployment documentation..."
+        # Add documentation update commands here
+
+    - name: Notify Teams
+      run: |
+        # Send deployment notifications
+        echo "Sending deployment notifications..."
+        # Add notification commands here (Slack, email, etc.)
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
+
+    steps:
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+
+    - name: Rollback Staging
+      if: needs.deploy-staging.result == 'failure'
+      run: |
+        aws eks update-kubeconfig --region us-west-2 --name experiment-staging-cluster
+        kubectl rollout undo deployment/backend-deployment -n staging
+        kubectl rollout undo deployment/frontend-deployment -n staging
+
+    - name: Rollback Production
+      if: needs.deploy-production.result == 'failure'
+      run: |
+        aws eks update-kubeconfig --region us-west-2 --name experiment-production-cluster
+        kubectl rollout undo deployment/backend-deployment -n production
+        kubectl rollout undo deployment/frontend-deployment -n production
+
+    - name: Notify Rollback
+      run: |
+        echo "Deployment failed and has been rolled back" >> $GITHUB_STEP_SUMMARY
+        # Add failure notification commands here

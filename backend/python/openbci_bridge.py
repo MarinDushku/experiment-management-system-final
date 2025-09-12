@@ -6,6 +6,9 @@ import sys
 import numpy as np
 from datetime import datetime
 import traceback
+import subprocess
+import queue
+import threading
 
 # Add delay for initialization
 time.sleep(1)
@@ -26,6 +29,12 @@ except ImportError as e:
 current_board = None
 current_board_id = None
 is_streaming = False
+
+# Visualization-related globals
+visualizer_process = None
+data_queue = queue.Queue()
+stream_running = False
+data_thread = None
 
 def init_board(serial_port):
     """Initialize connection to the OpenBCI board."""
@@ -213,7 +222,7 @@ def check_connection(serial_port):
             'message': str(e)
         }
 
-def start_recording(serial_port):
+def start_recording(serial_port, experiment_name=''):
     """Start recording EEG data from the OpenBCI board."""
     global current_board, current_board_id, is_streaming
     
@@ -230,6 +239,12 @@ def start_recording(serial_port):
                 print("Using existing board connection to start streaming")
                 current_board.start_stream()
                 is_streaming = True
+                
+                # Start visualizer with experiment name
+                if experiment_name:
+                    start_visualizer(experiment_name)
+                else:
+                    start_visualizer("OpenBCI Recording")
                 
                 return {
                     'status': 'success',
@@ -249,6 +264,12 @@ def start_recording(serial_port):
         
         # If already streaming
         if is_streaming:
+            # Start visualizer with experiment name if not already started
+            if experiment_name:
+                start_visualizer(experiment_name)
+            else:
+                start_visualizer("OpenBCI Recording")
+                
             return {
                 'status': 'success',
                 'message': 'Already recording',
@@ -275,6 +296,12 @@ def start_recording(serial_port):
             current_board_id = board_id
             is_streaming = True
             
+            # Start visualizer with experiment name
+            if experiment_name:
+                start_visualizer(experiment_name)
+            else:
+                start_visualizer("OpenBCI Recording")
+            
             print("Recording started with Cyton+Daisy board!")
             return {
                 'status': 'success',
@@ -284,7 +311,8 @@ def start_recording(serial_port):
             }
         except Exception as e1:
             print(f"Failed to start recording with Cyton+Daisy: {e1}")
-            print(traceback.format_exc())# Try Cyton only
+            print(traceback.format_exc())
+            # Try Cyton only
             try:
                 print("Trying to start recording with Cyton...")
                 board_id = BoardIds.CYTON_BOARD
@@ -297,6 +325,12 @@ def start_recording(serial_port):
                 current_board = board
                 current_board_id = board_id
                 is_streaming = True
+                
+                # Start visualizer with experiment name
+                if experiment_name:
+                    start_visualizer(experiment_name)
+                else:
+                    start_visualizer("OpenBCI Recording")
                 
                 print("Recording started with Cyton board!")
                 return {
@@ -317,7 +351,7 @@ def start_recording(serial_port):
             'message': str(e)
         }
 
-def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
+def stop_recording(serial_port, experiment_id, duration=5, output_file=None, experiment_name=''):
     """Stop recording and save the data."""
     global current_board, current_board_id, is_streaming
     
@@ -346,9 +380,16 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
                 
                 # Process and save the data
                 board_id = current_board_id
+                
+                # Stop visualizer
+                stop_visualizer()
             except Exception as e:
                 print(f"Error with existing board: {e}")
                 print(traceback.format_exc())
+                
+                # Stop visualizer anyway if there was an error
+                stop_visualizer()
+                
                 return {
                     'status': 'error',
                     'message': f"Error getting data from board: {str(e)}"
@@ -380,6 +421,9 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
                 # Stop stream
                 board.stop_stream()
                 board.release_session()
+                
+                # Stop visualizer if running
+                stop_visualizer()
             except Exception as e1:
                 print(f"Failed with Cyton+Daisy: {e1}")
                 print(traceback.format_exc())
@@ -403,9 +447,16 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
                     # Stop stream
                     board.stop_stream()
                     board.release_session()
+                    
+                    # Stop visualizer if running
+                    stop_visualizer()
                 except Exception as e2:
                     print(f"Failed with Cyton: {e2}")
                     print(traceback.format_exc())
+                    
+                    # Stop visualizer if running anyway
+                    stop_visualizer()
+                    
                     raise Exception(f"Could not connect to either board type: {e1}, {e2}")
         
         # Create directory if it doesn't exist
@@ -453,6 +504,9 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
         
         print(f"Data saved successfully to {file_path}")
         
+        # Stop visualizer
+        stop_visualizer()
+        
         # Return success information
         return {
             'status': 'success',
@@ -468,6 +522,10 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None):
     except Exception as e:
         print(f"Stop recording error: {e}")
         print(traceback.format_exc())
+        
+        # Stop visualizer if there was an error
+        stop_visualizer()
+        
         return {
             'status': 'error',
             'message': str(e)
@@ -489,6 +547,9 @@ def disconnect(serial_port):
             try:
                 print("Disconnecting existing board...")
                 
+                # Stop visualizer if it's running
+                stop_visualizer()
+                
                 # Stop streaming if active
                 if is_streaming:
                     current_board.stop_stream()
@@ -508,6 +569,9 @@ def disconnect(serial_port):
             except Exception as e:
                 print(f"Error disconnecting existing board: {e}")
                 print(traceback.format_exc())
+                
+                # Stop visualizer if there was an error
+                stop_visualizer()
                 
                 # Reset global variables anyway
                 current_board = None
@@ -535,6 +599,9 @@ def disconnect(serial_port):
             except Exception as e:
                 print(f"Error releasing session: {e}")
             
+            # Stop visualizer if running
+            stop_visualizer()
+            
             return {
                 'status': 'success',
                 'message': 'Cyton+Daisy board disconnected'
@@ -558,12 +625,19 @@ def disconnect(serial_port):
                 except Exception as e:
                     print(f"Error releasing session: {e}")
                 
+                # Stop visualizer if running
+                stop_visualizer()
+                
                 return {
                     'status': 'success',
                     'message': 'Cyton board disconnected'
                 }
             except Exception as e2:
                 print(f"Failed to disconnect from Cyton: {e2}")
+                
+                # Stop visualizer if running anyway
+                stop_visualizer()
+                
                 return {
                     'status': 'error',
                     'message': f"Could not disconnect from either board type: {e1}, {e2}"
@@ -571,6 +645,9 @@ def disconnect(serial_port):
     except Exception as e:
         print(f"Disconnect error: {e}")
         print(traceback.format_exc())
+        
+        # Stop visualizer if running anyway
+        stop_visualizer()
         
         # Reset global variables anyway
         current_board = None
@@ -581,6 +658,170 @@ def disconnect(serial_port):
             'status': 'error',
             'message': str(e)
         }
+
+def stream_data_to_visualizer():
+    """Thread function to stream data to the visualizer process"""
+    global stream_running, current_board, current_board_id
+    
+    print("Data streaming thread started")
+    
+    # Get sampling rate and channel list
+    if current_board_id is not None:
+        sampling_rate = BoardShim.get_sampling_rate(current_board_id)
+        eeg_channels = BoardShim.get_eeg_channels(current_board_id)
+    else:
+        print("Error: No board connected")
+        return
+    
+    # Calculate sleep time based on sampling rate 
+    # (smaller for higher sampling rates)
+    sleep_time = 1.0 / (sampling_rate / 10)  # Process data in small batches
+    
+    # Keep track of last processed data point
+    last_idx = 0
+    
+    while stream_running and current_board is not None:
+        try:
+            # Sleep to match approximate sampling rate
+            time.sleep(sleep_time)
+            
+            # Get latest data if streaming
+            if is_streaming:
+                # Get only new data since last read
+                data = current_board.get_board_data()
+                
+                # Check if we have new data
+                if data.shape[1] > last_idx:
+                    # Extract EEG channels
+                    eeg_data = data[eeg_channels, last_idx:]
+                    
+                    # Update last index
+                    last_idx = data.shape[1]
+                    
+                    # For each new sample
+                    for i in range(eeg_data.shape[1]):
+                        # Extract single sample across all channels
+                        sample = [float(eeg_data[j][i]) for j in range(eeg_data.shape[0])]
+                        
+                        # Send sample to visualizer stdin
+                        if visualizer_process and visualizer_process.stdin:
+                            try:
+                                json_data = json.dumps(sample) + '\n'
+                                visualizer_process.stdin.write(json_data)
+                                visualizer_process.stdin.flush()
+                            except:
+                                pass
+        except Exception as e:
+            print(f"Error in streaming thread: {e}")
+            print(traceback.format_exc())
+            time.sleep(0.1)  # Prevent tight loop if error
+    
+    print("Data streaming thread stopped")
+
+def start_visualizer(experiment_name=''):
+    """Start the visualizer process"""
+    global visualizer_process, stream_running, data_thread, current_board_id
+    
+    # Check if already running
+    if visualizer_process is not None:
+        print("Visualizer already running")
+        return
+    
+    try:
+        # Get path to visualizer script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        visualizer_path = os.path.join(script_dir, "brainwave_visualizer.py")
+        
+        # Check if visualizer script exists
+        if not os.path.exists(visualizer_path):
+            print(f"Visualizer script not found at {visualizer_path}")
+            # Create a minimal script if it doesn't exist
+            with open(visualizer_path, 'w') as f:
+                f.write("""
+import sys
+import json
+print("Minimal visualizer started - please run pip install matplotlib to enable full visualization")
+while True:
+    try:
+        line = sys.stdin.readline()
+        if not line:
+            break
+        # Just print data received
+        print(f"Received: {line.strip()}")
+    except:
+        break
+""")
+        
+        # Determine board type
+        board_type = 'cyton_daisy' if current_board_id == BoardIds.CYTON_DAISY_BOARD else 'cyton'
+        
+        # Build command
+        cmd = [
+            sys.executable,
+            visualizer_path,
+            '--board_type', board_type,
+            '--experiment_name', experiment_name or 'OpenBCI Recording'
+        ]
+        
+        # Start visualizer in a separate process
+        print(f"Starting visualizer: {' '.join(cmd)}")
+        visualizer_process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            text=True,
+            # Don't capture stdout/stderr to avoid blocking
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        # Start data streaming thread
+        stream_running = True
+        data_thread = threading.Thread(target=stream_data_to_visualizer)
+        data_thread.daemon = True
+        data_thread.start()
+        
+        print(f"Visualizer started successfully for {board_type}")
+        
+    except Exception as e:
+        print(f"Error starting visualizer: {e}")
+        print(traceback.format_exc())
+
+def stop_visualizer():
+    """Stop the visualizer process"""
+    global visualizer_process, stream_running, data_thread
+    
+    # Stop streaming thread
+    stream_running = False
+    
+    # Wait for thread to finish
+    if data_thread and data_thread.is_alive():
+        try:
+            data_thread.join(timeout=2)
+        except:
+            pass
+    
+    # Terminate visualizer process
+    if visualizer_process is not None:
+        try:
+            # Close stdin pipe
+            if visualizer_process.stdin:
+                visualizer_process.stdin.close()
+            
+            # Wait briefly for process to exit
+            visualizer_process.wait(timeout=2)
+        except:
+            # Force terminate if still running
+            try:
+                visualizer_process.terminate()
+                visualizer_process.wait(timeout=2)
+            except:
+                try:
+                    visualizer_process.kill()
+                except:
+                    pass
+        finally:
+            visualizer_process = None
+            print("Visualizer stopped")
 
 if __name__ == '__main__':
     # Add more detailed logging
@@ -604,6 +845,8 @@ if __name__ == '__main__':
                         help='Duration to record in seconds')
     parser.add_argument('--output_file', type=str, required=False,
                         help='Output filename for saving data')
+    parser.add_argument('--experiment_name', type=str, required=False, default='',
+                        help='Experiment name for visualization')
     
     args = parser.parse_args()
     
@@ -615,9 +858,9 @@ if __name__ == '__main__':
         elif args.action == 'check_connection':
             result = check_connection(args.serial_port)
         elif args.action == 'start_recording':
-            result = start_recording(args.serial_port)
+            result = start_recording(args.serial_port, args.experiment_name)
         elif args.action == 'stop_recording':
-            result = stop_recording(args.serial_port, args.experiment_id, args.duration, args.output_file)
+            result = stop_recording(args.serial_port, args.experiment_id, args.duration, args.output_file, args.experiment_name)
         elif args.action == 'disconnect':
             result = disconnect(args.serial_port)
         else:

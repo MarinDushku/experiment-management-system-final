@@ -1,0 +1,29 @@
+FROM node:18-alpine
+
+# Install Python and build dependencies for native modules
+RUN apk add --no-cache python3 py3-pip python3-dev build-base linux-headers
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy Python requirements and install dependencies
+COPY backend/requirements.txt ./
+RUN pip3 install --break-system-packages -r requirements.txt
+
+# Copy application code
+COPY backend/ .
+
+# Create uploads directory
+RUN mkdir -p uploads/eeg uploads/audio
+
+# Expose port
+EXPOSE 5000
+
+# Command to run the application
+CMD ["node", "server.js"]

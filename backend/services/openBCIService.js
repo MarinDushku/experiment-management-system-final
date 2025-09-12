@@ -52,10 +52,10 @@ class OpenBCIService {
             
             // Set timeout to kill process if it takes too long
             const timeout = setTimeout(() => {
-                console.error('Python process timed out after 30 seconds');
+                console.error('Python process timed out after 60 seconds');
                 process.kill();
-                reject(new Error('Process timed out after 30 seconds'));
-            }, 30000);
+                reject(new Error('Process timed out after 60 seconds'));
+            }, 60000); // Increased from 30000 to 60000
             
             // Handle process completion
             process.on('close', (code) => {
@@ -500,9 +500,10 @@ print(json.dumps(result))
 
     /**
      * Start recording EEG data
+     * @param {string} experimentName - Name of the experiment for visualization
      * @returns {Promise<Object>} - Recording result
      */
-    async startRecording() {
+    async startRecording(experimentName = '') {
         try {
             if (!this.serialPort) {
                 throw new Error('OpenBCI device not connected (no serial port)');
@@ -515,10 +516,11 @@ print(json.dumps(result))
                 throw new Error('OpenBCI device not connected (failed check)');
             }
             
-            console.log(`Starting recording on port: ${this.serialPort}`);
+            console.log(`Starting recording on port: ${this.serialPort}, experiment: ${experimentName}`);
             const result = await this.executePythonScript({
                 action: 'start_recording',
-                serial_port: this.serialPort
+                serial_port: this.serialPort,
+                experiment_name: experimentName || 'OpenBCI Recording'
             });
             
             console.log(`Start recording result: ${JSON.stringify(result)}`);
@@ -560,7 +562,8 @@ print(json.dumps(result))
                 serial_port: this.serialPort,
                 experiment_id: experimentId,
                 duration: duration,
-                output_file: filename
+                output_file: filename,
+                experiment_name: experimentName
             });
             
             console.log(`Stop recording result: ${JSON.stringify(result)}`);

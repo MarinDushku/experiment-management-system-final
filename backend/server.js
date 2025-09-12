@@ -2,6 +2,7 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
+const swagger = require('./config/swagger');
 require('dotenv').config(); // For loading environment variables
 
 // Connect to database
@@ -12,6 +13,9 @@ const app = express();
 // Init Middleware
 app.use(express.json());
 app.use(cors());
+
+// Swagger Documentation
+app.use('/api/docs', swagger.serve, swagger.setup);
 
 // Define Routes
 app.use('/api/auth', require('./routes/auth'));

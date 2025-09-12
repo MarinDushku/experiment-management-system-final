@@ -429,7 +429,6 @@ exports.resetBoard = async (req, res) => {
     }
 };
 
-// Keep the remaining methods the same as in your original file
 exports.connect = async (req, res) => {
     try {
         const { serialPort } = req.body;
@@ -517,14 +516,16 @@ exports.disconnect = async (req, res) => {
 
 exports.startRecording = async (req, res) => {
     try {
-        console.log('Starting EEG recording session');
-        const result = await openBCIService.startRecording();
+        const { experimentName } = req.body || {};
+        
+        console.log('Starting EEG recording session with name:', experimentName);
+        const result = await openBCIService.startRecording(experimentName);
         console.log('Start recording result:', JSON.stringify(result));
         
         if (result.status === 'success') {
             return res.json({ 
                 success: true, 
-                message: 'Successfully started EEG recording',
+                message: 'Successfully started EEG recording with visualization',
                 data: result
             });
         } else {

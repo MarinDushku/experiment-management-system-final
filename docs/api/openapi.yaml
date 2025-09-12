@@ -1,0 +1,1003 @@
+openapi: 3.0.3
+info:
+  title: Research Experiment Management System API
+  description: |
+    A comprehensive API for managing research experiments with OpenBCI EEG integration.
+    
+    This API provides endpoints for:
+    - User authentication and management
+    - Experiment creation and management
+    - Trial and step configuration
+    - EEG data collection and analysis
+    - File uploads and media handling
+    
+    ## Authentication
+    This API uses JWT (JSON Web Token) authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+    
+    ## Roles
+    - **User**: Basic access to participate in experiments
+    - **Researcher**: Can create and manage experiments
+    - **Admin**: Full system access including user management
+  version: 1.0.0
+  contact:
+    name: Research Experiment Management System
+    url: https://github.com/yourusername/experiment-management-system
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: http://localhost:80/api
+    description: Production server (Docker)
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      description: Create a new user account with username, password, and role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  example: "researcher01"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "securepassword123"
+                role:
+                  type: string
+                  enum: [user, researcher, admin]
+                  default: user
+                  example: "researcher"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request - validation error or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login user
+      description: Authenticate user and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "researcher01"
+                password:
+                  type: string
+                  example: "securepassword123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Experiment Endpoints
+  /experiments:
+    get:
+      tags: [Experiments]
+      summary: Get all experiments
+      description: Retrieve all experiments accessible to the current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter experiments by status
+          schema:
+            type: string
+            enum: [Active, Completed, Draft]
+        - name: creator
+          in: query
+          description: Filter experiments by creator ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of experiments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Experiment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Experiments]
+      summary: Create new experiment
+      description: Create a new research experiment (Researcher/Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+              properties:
+                name:
+                  type: string
+                  example: "Memory Recall Study"
+                description:
+                  type: string
+                  example: "Study investigating memory recall patterns using EEG"
+                status:
+                  type: string
+                  enum: [Active, Completed, Draft]
+                  default: Draft
+                  example: "Draft"
+      responses:
+        '201':
+          description: Experiment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /experiments/{id}:
+    get:
+      tags: [Experiments]
+      summary: Get experiment by ID
+      description: Retrieve a specific experiment by its ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Experiment ID
+          schema:
+            type: string
+            example: "64f8b123456789abcdef0001"
+      responses:
+        '200':
+          description: Experiment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Experiments]
+      summary: Update experiment
+      description: Update an existing experiment (Creator/Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Experiment ID
+          schema:
+            type: string
+            example: "64f8b123456789abcdef0001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Updated Memory Recall Study"
+                description:
+                  type: string
+                  example: "Updated description for memory recall study"
+                status:
+                  type: string
+                  enum: [Active, Completed, Draft]
+                  example: "Active"
+      responses:
+        '200':
+          description: Experiment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Experiments]
+      summary: Delete experiment
+      description: Delete an experiment (Creator/Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Experiment ID
+          schema:
+            type: string
+            example: "64f8b123456789abcdef0001"
+      responses:
+        '200':
+          description: Experiment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Experiment deleted successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Trial Endpoints
+  /trials:
+    get:
+      tags: [Trials]
+      summary: Get all trials
+      description: Retrieve all trials accessible to the current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: experiment
+          in: query
+          description: Filter trials by experiment ID
+          schema:
+            type: string
+        - name: participant
+          in: query
+          description: Filter trials by participant ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of trials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trial'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Trials]
+      summary: Create new trial
+      description: Create a new trial for an experiment (Researcher/Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - experiment
+              properties:
+                name:
+                  type: string
+                  example: "Trial 1 - Baseline"
+                experiment:
+                  type: string
+                  example: "64f8b123456789abcdef0001"
+                participant:
+                  type: string
+                  example: "64f8b123456789abcdef0002"
+                steps:
+                  type: array
+                  items:
+                    type: string
+                    example: "64f8b123456789abcdef0003"
+      responses:
+        '201':
+          description: Trial created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trial'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Step Endpoints
+  /steps:
+    get:
+      tags: [Steps]
+      summary: Get all steps
+      description: Retrieve all steps accessible to the current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Filter steps by type
+          schema:
+            type: string
+            enum: [Audio, Visual, Text, EEG]
+        - name: creator
+          in: query
+          description: Filter steps by creator ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Step'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags: [Steps]
+      summary: Create new step
+      description: Create a new experimental step (Researcher/Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - duration
+              properties:
+                name:
+                  type: string
+                  example: "Audio Stimulus"
+                type:
+                  type: string
+                  enum: [Audio, Visual, Text, EEG]
+                  example: "Audio"
+                duration:
+                  type: number
+                  minimum: 1
+                  example: 30
+                content:
+                  type: string
+                  example: "path/to/audio/file.mp3"
+                description:
+                  type: string
+                  example: "Play relaxing music for 30 seconds"
+      responses:
+        '201':
+          description: Step created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Step'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # OpenBCI/EEG Endpoints
+  /openbci/start:
+    post:
+      tags: [OpenBCI/EEG]
+      summary: Start EEG data collection
+      description: Start collecting EEG data from OpenBCI device (Researcher/Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - participant_name
+              properties:
+                participant_name:
+                  type: string
+                  example: "participant_001"
+                session_name:
+                  type: string
+                  example: "baseline_recording"
+                duration:
+                  type: number
+                  example: 300
+                  description: "Recording duration in seconds"
+      responses:
+        '200':
+          description: EEG data collection started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "EEG data collection started successfully"
+                  filename:
+                    type: string
+                    example: "eeg_participant_001_2024-01-15T10-30-45.123Z.csv"
+        '400':
+          description: Bad request - invalid parameters or device not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /openbci/stop:
+    post:
+      tags: [OpenBCI/EEG]
+      summary: Stop EEG data collection
+      description: Stop the current EEG data collection session
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: EEG data collection stopped successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "EEG data collection stopped successfully"
+                  filename:
+                    type: string
+                    example: "eeg_participant_001_2024-01-15T10-30-45.123Z.csv"
+        '400':
+          description: Bad request - no active recording session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /openbci/status:
+    get:
+      tags: [OpenBCI/EEG]
+      summary: Get EEG device status
+      description: Check the current status of the OpenBCI device and data collection
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OpenBCI device status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                    example: true
+                  recording:
+                    type: boolean
+                    example: false
+                  device_info:
+                    type: object
+                    properties:
+                      board_id:
+                        type: string
+                        example: "OpenBCI_Cyton"
+                      serial_port:
+                        type: string
+                        example: "COM3"
+                      sampling_rate:
+                        type: number
+                        example: 250
+                  current_session:
+                    type: object
+                    nullable: true
+                    properties:
+                      participant_name:
+                        type: string
+                        example: "participant_001"
+                      start_time:
+                        type: string
+                        format: date-time
+                        example: "2024-01-15T10:30:45.123Z"
+                      duration:
+                        type: number
+                        example: 300
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # File Upload Endpoints
+  /upload/audio:
+    post:
+      tags: [File Upload]
+      summary: Upload audio file
+      description: Upload an audio file for use in experiments (Researcher/Admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Audio file (mp3, wav, m4a supported)
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "File uploaded successfully"
+                  filename:
+                    type: string
+                    example: "audio_file_123456789.mp3"
+                  url:
+                    type: string
+                    example: "/uploads/audio/audio_file_123456789.mp3"
+        '400':
+          description: Bad request - invalid file type or missing file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "64f8b123456789abcdef0001"
+        username:
+          type: string
+          example: "researcher01"
+        role:
+          type: string
+          enum: [user, researcher, admin]
+          example: "researcher"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+
+    Experiment:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "64f8b123456789abcdef0001"
+        name:
+          type: string
+          example: "Memory Recall Study"
+        description:
+          type: string
+          example: "Study investigating memory recall patterns using EEG"
+        status:
+          type: string
+          enum: [Active, Completed, Draft]
+          example: "Active"
+        createdBy:
+          $ref: '#/components/schemas/User'
+        trials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trial'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+
+    Trial:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "64f8b123456789abcdef0002"
+        name:
+          type: string
+          example: "Trial 1 - Baseline"
+        experiment:
+          type: string
+          example: "64f8b123456789abcdef0001"
+        participant:
+          $ref: '#/components/schemas/User'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/Step'
+        results:
+          type: object
+          additionalProperties: true
+          example: {"completion_time": 180, "accuracy": 0.85}
+        createdBy:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+
+    Step:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "64f8b123456789abcdef0003"
+        name:
+          type: string
+          example: "Audio Stimulus"
+        type:
+          type: string
+          enum: [Audio, Visual, Text, EEG]
+          example: "Audio"
+        duration:
+          type: number
+          example: 30
+        content:
+          type: string
+          example: "path/to/audio/file.mp3"
+        description:
+          type: string
+          example: "Play relaxing music for 30 seconds"
+        createdBy:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:45.123Z"
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "An error occurred"
+        error:
+          type: string
+          example: "Validation failed"
+        details:
+          type: object
+          additionalProperties: true
+          example: {"field": "username", "issue": "Username already exists"}
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Experiments
+    description: Research experiment management
+  - name: Trials
+    description: Trial configuration and management
+  - name: Steps
+    description: Experimental step management
+  - name: OpenBCI/EEG
+    description: EEG data collection with OpenBCI
+  - name: File Upload
+    description: File upload and management
