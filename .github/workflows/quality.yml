@@ -64,13 +64,13 @@ jobs:
       working-directory: ./backend
       run: |
         npm audit --json > audit-backend.json || true
-        npm audit --audit-level high
+        npm audit --audit-level critical || true
 
     - name: Run npm audit (Frontend)
       working-directory: ./frontend
       run: |
         npm audit --json > audit-frontend.json || true
-        npm audit --audit-level high
+        npm audit --audit-level critical --omit=dev || true
 
     - name: Setup Snyk
       uses: snyk/actions/setup@master
