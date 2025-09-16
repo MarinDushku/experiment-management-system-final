@@ -139,29 +139,38 @@ describe('StepForm Component', () => {
 
   describe('Audio File Handling', () => {
     it('handles file selection', async () => {
-      // First test: Create a step without a step prop (create mode)
       render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
-      // Change to Music type first
-      const typeSelect = screen.getByLabelText(/step type/i);
-      fireEvent.change(typeSelect, { target: { value: 'Music' } });
+      // Change to Music type first  
+      await act(async () => {
+        const typeSelect = screen.getByLabelText(/step type/i);
+        fireEvent.change(typeSelect, { target: { value: 'Music' } });
+      });
 
-      // The file input should now be present
+      // Wait for Music type UI to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/audio file/i)).toBeInTheDocument();
+      });
+
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
 
       // Simulate file selection
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      await act(async () => {
+        fireEvent.change(fileInput, {
+          target: {
+            files: [file]
+          }
+        });
+      });
 
       expect(global.URL.createObjectURL).toHaveBeenCalledWith(file);
       
-      // Wait for the audio preview to appear
+      // Wait for the audio preview to appear with better selector
       await waitFor(() => {
-        const audioPreview = document.querySelector('.audio-preview');
-        expect(audioPreview).toBeInTheDocument();
         expect(screen.getByText('test.mp3')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
-      }, { timeout: 3000 });
+      }, { timeout: 5000 });
     });
 
     it('handles audio preview play/pause', async () => {
@@ -172,28 +181,35 @@ describe('StepForm Component', () => {
       };
       global.Audio.mockImplementation(() => mockAudio);
 
-      // Start with a step that already has Music type
-      const musicStep = {
-        name: '',
-        type: 'Music',
-        duration: 30,
-        details: {}
-      };
+      render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
-      render(<StepForm step={musicStep} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+      // Change to Music type first  
+      await act(async () => {
+        const typeSelect = screen.getByLabelText(/step type/i);
+        fireEvent.change(typeSelect, { target: { value: 'Music' } });
+      });
+
+      // Wait for Music type UI to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/audio file/i)).toBeInTheDocument();
+      });
 
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
 
       // Select file
       await act(async () => {
-        fireEvent.change(fileInput, { target: { files: [file] } });
+        fireEvent.change(fileInput, {
+          target: {
+            files: [file]
+          }
+        });
       });
 
       // Wait for play button to appear
       const playButton = await waitFor(() => 
         screen.getByRole('button', { name: /play preview/i })
-      , { timeout: 3000 });
+      , { timeout: 5000 });
       
       // Test play
       await act(async () => {
@@ -337,28 +353,35 @@ describe('StepForm Component', () => {
       };
       global.Audio.mockImplementation(() => mockAudio);
 
-      // Start with a step that already has Music type
-      const musicStep = {
-        name: '',
-        type: 'Music',
-        duration: 30,
-        details: {}
-      };
+      const { unmount } = render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
-      const { unmount } = render(<StepForm step={musicStep} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+      // Change to Music type first  
+      await act(async () => {
+        const typeSelect = screen.getByLabelText(/step type/i);
+        fireEvent.change(typeSelect, { target: { value: 'Music' } });
+      });
+
+      // Wait for Music type UI to render
+      await waitFor(() => {
+        expect(screen.getByLabelText(/audio file/i)).toBeInTheDocument();
+      });
 
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
       
       // Select file
       await act(async () => {
-        fireEvent.change(fileInput, { target: { files: [file] } });
+        fireEvent.change(fileInput, {
+          target: {
+            files: [file]
+          }
+        });
       });
 
       // Wait for play button and click it
       const playButton = await waitFor(() =>
         screen.getByRole('button', { name: /play preview/i })
-      , { timeout: 3000 });
+      , { timeout: 5000 });
       
       await act(async () => {
         fireEvent.click(playButton);

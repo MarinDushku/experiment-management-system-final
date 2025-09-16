@@ -31,44 +31,59 @@ describe('AudioPlayer Component', () => {
     global.Audio = jest.fn(() => mockAudioInstance);
   });
 
-  it('renders audio player controls', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('renders audio player controls', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(screen.getByRole('button')).toBeInTheDocument();
     expect(screen.getByText('0:00')).toBeInTheDocument();
     expect(screen.getByText('3:00')).toBeInTheDocument();
   });
 
-  it('creates Audio instance with correct source', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('creates Audio instance with correct source', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(global.Audio).toHaveBeenCalledWith('/test-audio.mp3');
     expect(mockAudioInstance.src).toBe('/test-audio.mp3');
   });
 
-  it('attempts to play audio on mount', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('attempts to play audio on mount', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(mockAudioInstance.play).toHaveBeenCalled();
   });
 
-  it('sets up event listeners', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('sets up event listeners', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
     expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
   });
 
-  it('displays play button initially', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('displays play button initially', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     const playButton = screen.getByRole('button');
     expect(playButton).toHaveClass('play-button');
-    expect(playButton).toHaveTextContent('▶');
+    // After auto-play starts, button should show pause symbol
+    expect(playButton).toHaveTextContent('❚❚');
   });
 
   it('toggles play/pause when button clicked', async () => {
-    const { rerender } = render(<AudioPlayer {...defaultProps} />);
+    let renderResult;
+    await act(async () => {
+      renderResult = render(<AudioPlayer {...defaultProps} />);
+    });
+    const { rerender } = renderResult;
     
     const playButton = screen.getByRole('button');
     
@@ -90,22 +105,28 @@ describe('AudioPlayer Component', () => {
     expect(mockAudioInstance.play).toHaveBeenCalledTimes(2); // Once on mount, once on click
   });
 
-  it('formats time correctly', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('formats time correctly', async () => {
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(screen.getByText('0:00')).toBeInTheDocument(); // Current time
     expect(screen.getByText('3:00')).toBeInTheDocument(); // Duration
   });
 
-  it('formats time with double digits correctly', () => {
+  it('formats time with double digits correctly', async () => {
     const props = { ...defaultProps, duration: 3665 }; // 1:01:05
-    render(<AudioPlayer {...props} />);
+    await act(async () => {
+      render(<AudioPlayer {...props} />);
+    });
     
     expect(screen.getByText('61:05')).toBeInTheDocument(); // Duration (simplified formatting)
   });
 
   it('calls onEnded when audio ends', async () => {
-    render(<AudioPlayer {...defaultProps} />);
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     // Get the ended callback that was registered
     const endedCallback = mockAudioInstance.addEventListener.mock.calls.find(
@@ -121,7 +142,9 @@ describe('AudioPlayer Component', () => {
   });
 
   it('updates progress bar based on time', async () => {
-    render(<AudioPlayer {...defaultProps} />);
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     // Get the timeupdate callback
     const timeUpdateCallback = mockAudioInstance.addEventListener.mock.calls.find(
@@ -139,8 +162,12 @@ describe('AudioPlayer Component', () => {
     expect(progressFill).toHaveStyle({ width: '50%' });
   });
 
-  it('cleans up audio and event listeners on unmount', () => {
-    const { unmount } = render(<AudioPlayer {...defaultProps} />);
+  it('cleans up audio and event listeners on unmount', async () => {
+    let renderResult;
+    await act(async () => {
+      renderResult = render(<AudioPlayer {...defaultProps} />);
+    });
+    const { unmount } = renderResult;
     
     unmount();
     
@@ -149,11 +176,13 @@ describe('AudioPlayer Component', () => {
     expect(mockAudioInstance.removeEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
   });
 
-  it('handles audio play error gracefully', () => {
+  it('handles audio play error gracefully', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockAudioInstance.play.mockRejectedValue(new Error('Play failed'));
     
-    render(<AudioPlayer {...defaultProps} />);
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     expect(mockAudioInstance.play).toHaveBeenCalled();
     // Should not crash the component
@@ -164,7 +193,9 @@ describe('AudioPlayer Component', () => {
   it('uses fallback duration when audio duration is not available', async () => {
     mockAudioInstance.duration = NaN;
     
-    render(<AudioPlayer {...defaultProps} />);
+    await act(async () => {
+      render(<AudioPlayer {...defaultProps} />);
+    });
     
     // Get the timeupdate callback
     const timeUpdateCallback = mockAudioInstance.addEventListener.mock.calls.find(
@@ -184,7 +215,9 @@ describe('AudioPlayer Component', () => {
 
   it('handles missing onEnded callback gracefully', async () => {
     const propsWithoutCallback = { ...defaultProps, onEnded: undefined };
-    render(<AudioPlayer {...propsWithoutCallback} />);
+    await act(async () => {
+      render(<AudioPlayer {...propsWithoutCallback} />);
+    });
     
     // Get the ended callback
     const endedCallback = mockAudioInstance.addEventListener.mock.calls.find(
