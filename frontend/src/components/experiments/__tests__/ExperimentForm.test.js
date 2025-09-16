@@ -7,6 +7,10 @@ import ExperimentForm from '../ExperimentForm';
 jest.mock('axios');
 const mockedAxios = axios;
 
+// Mock axios as a function and also mock axios.get
+mockedAxios.mockImplementation(() => Promise.resolve({ data: {} }));
+mockedAxios.get = jest.fn();
+
 // Mock localStorage
 const mockLocalStorage = {
   getItem: jest.fn(() => 'mock-token'),
@@ -36,8 +40,10 @@ describe('ExperimentForm Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock successful trials fetch
+    // Mock successful trials fetch (for useEffect)
     mockedAxios.get.mockResolvedValue({ data: mockTrials });
+    // Mock axios function calls (for form submission)
+    mockedAxios.mockResolvedValue({ data: { _id: 'new-exp', name: 'Test Experiment' } });
     // Suppress console logs for cleaner test output
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -89,6 +95,7 @@ describe('ExperimentForm Component', () => {
 
     it('handles trials fetch error', async () => {
       const errorMessage = 'Network error';
+      // Override the trials fetch mock for this specific test
       mockedAxios.get.mockRejectedValue(new Error(errorMessage));
       
       render(<ExperimentForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -277,6 +284,7 @@ describe('ExperimentForm Component', () => {
 
   describe('Form Submission', () => {
     it('submits new experiment correctly', async () => {
+      // Override the default mock for this specific test
       mockedAxios.mockResolvedValue({ data: { _id: 'new-exp', name: 'Test Experiment' } });
       
       render(<ExperimentForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -317,7 +325,9 @@ describe('ExperimentForm Component', () => {
         });
       });
 
-      expect(mockOnSubmit).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled();
+      });
     });
 
     it('submits experiment update correctly', async () => {
@@ -328,6 +338,7 @@ describe('ExperimentForm Component', () => {
         status: 'Active'
       };
 
+      // Override the default mock for this specific test
       mockedAxios.mockResolvedValue({ data: existingExperiment });
       
       render(<ExperimentForm experiment={existingExperiment} onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -360,6 +371,7 @@ describe('ExperimentForm Component', () => {
 
     it('handles submission error', async () => {
       const errorMessage = 'Validation failed';
+      // Override the default mock for this specific test
       mockedAxios.mockRejectedValue({
         response: { data: { message: errorMessage } }
       });
@@ -414,6 +426,7 @@ describe('ExperimentForm Component', () => {
 
   describe('Empty States', () => {
     it('shows empty state when no trials available', async () => {
+      // Override the trials fetch mock for this specific test
       mockedAxios.get.mockResolvedValue({ data: [] });
       
       render(<ExperimentForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);

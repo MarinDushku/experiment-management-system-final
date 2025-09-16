@@ -66,9 +66,6 @@ describe('OpenBCI Controller', () => {
   let mockProcess;
 
   beforeAll(async () => {
-    // Use fake timers for timeout tests
-    jest.useFakeTimers();
-    
     app = createTestApp();
     
     // Create test user and experiment
@@ -101,9 +98,6 @@ describe('OpenBCI Controller', () => {
     openBCIService.isConnected = false;
   });
 
-  afterAll(() => {
-    jest.useRealTimers();
-  });
 
   describe('POST /openbci/direct-connect (directConnect)', () => {
     it('should connect successfully with valid response', async () => {

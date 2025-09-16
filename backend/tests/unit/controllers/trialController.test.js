@@ -6,17 +6,24 @@ const Trial = require('../../../models/Trial');
 const Step = require('../../../models/Step');
 const TestHelpers = require('../../utils/testHelpers');
 
-// Create test app
-const createTestApp = () => {
+// Create test app with specific user IDs
+const createTestApp = (testUserId, adminUserId) => {
   const app = express();
   app.use(express.json());
 
   // Mock auth middleware
   const mockAuth = (role = 'researcher') => (req, res, next) => {
-    req.user = { 
-      id: new mongoose.Types.ObjectId().toString(), 
-      role: role 
-    };
+    if (role === 'admin') {
+      req.user = { 
+        id: adminUserId, 
+        role: 'admin' 
+      };
+    } else {
+      req.user = { 
+        id: testUserId, 
+        role: 'researcher' 
+      };
+    }
     next();
   };
 
@@ -40,9 +47,7 @@ describe('Trial Controller', () => {
   let testStep1, testStep2;
 
   beforeAll(async () => {
-    app = createTestApp();
-    
-    // Create test users
+    // Create test users first
     testUser = await TestHelpers.createTestUser({
       username: 'trialuser',
       role: 'researcher'
@@ -57,6 +62,9 @@ describe('Trial Controller', () => {
       username: 'othertrial',
       role: 'researcher'
     });
+
+    // Create test app with the actual user IDs
+    app = createTestApp(testUser._id.toString(), adminUser._id.toString());
   });
 
   beforeEach(async () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import StepForm from '../StepForm';
 
 // Mock URL.createObjectURL
@@ -138,23 +138,26 @@ describe('StepForm Component', () => {
   });
 
   describe('Audio File Handling', () => {
-    beforeEach(() => {
+    it('handles file selection', async () => {
       render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
       const typeSelect = screen.getByLabelText(/step type/i);
       fireEvent.change(typeSelect, { target: { value: 'Music' } });
-    });
 
-    it('handles file selection', async () => {
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
 
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
 
       expect(global.URL.createObjectURL).toHaveBeenCalledWith(file);
       
       await waitFor(() => {
         expect(screen.getByText('test.mp3')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
       });
     });
@@ -167,10 +170,17 @@ describe('StepForm Component', () => {
       };
       global.Audio.mockImplementation(() => mockAudio);
 
+      render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+      
+      const typeSelect = screen.getByLabelText(/step type/i);
+      fireEvent.change(typeSelect, { target: { value: 'Music' } });
+
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
 
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
 
       const playButton = await waitFor(() => 
         screen.getByRole('button', { name: /play preview/i })
@@ -180,12 +190,19 @@ describe('StepForm Component', () => {
       fireEvent.click(playButton);
       expect(global.Audio).toHaveBeenCalledWith('mock-file-url');
       expect(mockAudio.play).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /pause preview/i })).toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /pause preview/i })).toBeInTheDocument();
+      });
 
       // Test pause
-      fireEvent.click(playButton);
+      const pauseButton = screen.getByRole('button', { name: /pause preview/i });
+      fireEvent.click(pauseButton);
       expect(mockAudio.pause).toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
+      });
     });
   });
 
@@ -314,12 +331,20 @@ describe('StepForm Component', () => {
 
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
 
       const playButton = await waitFor(() =>
         screen.getByRole('button', { name: /play preview/i })
       );
       fireEvent.click(playButton);
+
+      // Wait for audio to be playing
+      await waitFor(() => {
+        expect(mockAudio.play).toHaveBeenCalled();
+      });
 
       unmount();
       

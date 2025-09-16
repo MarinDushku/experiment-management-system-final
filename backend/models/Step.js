@@ -20,12 +20,20 @@ const StepSchema = new mongoose.Schema({
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: true
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Add indexes for performance
+StepSchema.index({ createdBy: 1 });
+StepSchema.index({ type: 1 });
+StepSchema.index({ createdAt: -1 });
+StepSchema.index({ createdBy: 1, type: 1 }); // Compound index for user's steps by type
+StepSchema.index({ createdBy: 1, createdAt: -1 }); // Compound index for user's steps sorted by date
 
 module.exports = mongoose.model('Step', StepSchema);

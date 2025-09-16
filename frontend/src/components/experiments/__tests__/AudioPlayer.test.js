@@ -10,13 +10,13 @@ describe('AudioPlayer Component', () => {
   };
 
   // Mock Audio instance
-  let mockAudioInstanceInstance;
+  let mockAudioInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
     // Create a fresh Audio instance mock for each test
-    mockAudioInstanceInstance = {
+    mockAudioInstance = {
       play: jest.fn(() => Promise.resolve()),
       pause: jest.fn(),
       addEventListener: jest.fn(),
@@ -28,7 +28,7 @@ describe('AudioPlayer Component', () => {
     };
     
     // Mock the global Audio constructor
-    global.Audio = jest.fn(() => mockAudioInstanceInstance);
+    global.Audio = jest.fn(() => mockAudioInstance);
   });
 
   it('renders audio player controls', () => {
@@ -43,20 +43,20 @@ describe('AudioPlayer Component', () => {
     render(<AudioPlayer {...defaultProps} />);
     
     expect(global.Audio).toHaveBeenCalledWith('/test-audio.mp3');
-    expect(mockAudioInstanceInstance.src).toBe('/test-audio.mp3');
+    expect(mockAudioInstance.src).toBe('/test-audio.mp3');
   });
 
   it('attempts to play audio on mount', () => {
     render(<AudioPlayer {...defaultProps} />);
     
-    expect(mockAudioInstanceInstance.play).toHaveBeenCalled();
+    expect(mockAudioInstance.play).toHaveBeenCalled();
   });
 
   it('sets up event listeners', () => {
     render(<AudioPlayer {...defaultProps} />);
     
-    expect(mockAudioInstanceInstance.addEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
-    expect(mockAudioInstanceInstance.addEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
+    expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
+    expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
   });
 
   it('displays play button initially', () => {

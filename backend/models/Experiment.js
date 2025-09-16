@@ -26,7 +26,8 @@ const ExperimentSchema = new mongoose.Schema({
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: true
   },
   eegRecordings: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -37,5 +38,12 @@ const ExperimentSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Add indexes for performance
+ExperimentSchema.index({ createdBy: 1 });
+ExperimentSchema.index({ createdAt: -1 });
+ExperimentSchema.index({ status: 1 });
+ExperimentSchema.index({ createdBy: 1, status: 1 }); // Compound index for user's experiments by status
+ExperimentSchema.index({ createdBy: 1, createdAt: -1 }); // Compound index for user's experiments sorted by date
 
 module.exports = mongoose.model('Experiment', ExperimentSchema);

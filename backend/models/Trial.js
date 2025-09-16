@@ -21,12 +21,18 @@ const TrialSchema = new mongoose.Schema({
   }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: true
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
+
+// Add indexes for performance
+TrialSchema.index({ createdBy: 1 });
+TrialSchema.index({ createdAt: -1 });
+TrialSchema.index({ createdBy: 1, createdAt: -1 }); // Compound index for user's trials sorted by date
 
 module.exports = mongoose.model('Trial', TrialSchema);

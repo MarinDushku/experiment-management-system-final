@@ -30,7 +30,15 @@ const createTestApp = () => {
   
   // Error handling
   app.use((err, req, res, next) => {
-    res.status(500).json({ message: err.message });
+    // Handle JSON parsing errors
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      return res.status(400).json({ message: 'Invalid JSON' });
+    }
+    
+    // Handle other errors
+    res.status(err.status || 500).json({ 
+      message: err.message || 'Server error' 
+    });
   });
   
   return app;
