@@ -36,7 +36,8 @@ describe('StepForm Component', () => {
     it('has correct default values', () => {
       render(<StepForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
       
-      expect(screen.getByDisplayValue('')).toBeInTheDocument(); // name field
+      const nameInput = screen.getByLabelText(/step name/i);
+      expect(nameInput.value).toBe(''); // name field
       expect(screen.getByDisplayValue('Rest')).toBeInTheDocument(); // type field
       expect(screen.getByDisplayValue('30')).toBeInTheDocument(); // duration field
     });
@@ -110,7 +111,9 @@ describe('StepForm Component', () => {
       fireEvent.change(typeSelect, { target: { value: 'Music' } });
 
       expect(screen.getByLabelText(/audio file/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /choose file/i }) || screen.getByText(/choose file/i)).toBeTruthy();
+      // File input should exist
+      const fileInput = screen.getByLabelText(/audio file/i);
+      expect(fileInput).toHaveAttribute('type', 'file');
       
       // Should not show other type fields
       expect(screen.queryByLabelText(/question/i)).not.toBeInTheDocument();
@@ -142,18 +145,21 @@ describe('StepForm Component', () => {
       fireEvent.change(typeSelect, { target: { value: 'Music' } });
     });
 
-    it('handles file selection', () => {
+    it('handles file selection', async () => {
       const fileInput = screen.getByLabelText(/audio file/i);
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
 
       fireEvent.change(fileInput, { target: { files: [file] } });
 
       expect(global.URL.createObjectURL).toHaveBeenCalledWith(file);
-      expect(screen.getByText('test.mp3')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
+      
+      await waitFor(() => {
+        expect(screen.getByText('test.mp3')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /play preview/i })).toBeInTheDocument();
+      });
     });
 
-    it('handles audio preview play/pause', () => {
+    it('handles audio preview play/pause', async () => {
       const mockAudio = {
         play: jest.fn(),
         pause: jest.fn(),
@@ -166,7 +172,9 @@ describe('StepForm Component', () => {
 
       fireEvent.change(fileInput, { target: { files: [file] } });
 
-      const playButton = screen.getByRole('button', { name: /play preview/i });
+      const playButton = await waitFor(() => 
+        screen.getByRole('button', { name: /play preview/i })
+      );
       
       // Test play
       fireEvent.click(playButton);
@@ -291,7 +299,7 @@ describe('StepForm Component', () => {
   });
 
   describe('Cleanup', () => {
-    it('pauses audio on unmount', () => {
+    it('pauses audio on unmount', async () => {
       const mockAudio = {
         play: jest.fn(),
         pause: jest.fn(),
@@ -308,7 +316,9 @@ describe('StepForm Component', () => {
       const file = new File(['audio content'], 'test.mp3', { type: 'audio/mpeg' });
       fireEvent.change(fileInput, { target: { files: [file] } });
 
-      const playButton = screen.getByRole('button', { name: /play preview/i });
+      const playButton = await waitFor(() =>
+        screen.getByRole('button', { name: /play preview/i })
+      );
       fireEvent.click(playButton);
 
       unmount();

@@ -10,13 +10,13 @@ describe('AudioPlayer Component', () => {
   };
 
   // Mock Audio instance
-  let mockAudioInstance;
+  let mockAudioInstanceInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
     // Create a fresh Audio instance mock for each test
-    mockAudioInstance = {
+    mockAudioInstanceInstance = {
       play: jest.fn(() => Promise.resolve()),
       pause: jest.fn(),
       addEventListener: jest.fn(),
@@ -28,7 +28,7 @@ describe('AudioPlayer Component', () => {
     };
     
     // Mock the global Audio constructor
-    global.Audio = jest.fn(() => mockAudioInstance);
+    global.Audio = jest.fn(() => mockAudioInstanceInstance);
   });
 
   it('renders audio player controls', () => {
@@ -43,20 +43,20 @@ describe('AudioPlayer Component', () => {
     render(<AudioPlayer {...defaultProps} />);
     
     expect(global.Audio).toHaveBeenCalledWith('/test-audio.mp3');
-    expect(mockAudioInstance.src).toBe('/test-audio.mp3');
+    expect(mockAudioInstanceInstance.src).toBe('/test-audio.mp3');
   });
 
   it('attempts to play audio on mount', () => {
     render(<AudioPlayer {...defaultProps} />);
     
-    expect(mockAudioInstance.play).toHaveBeenCalled();
+    expect(mockAudioInstanceInstance.play).toHaveBeenCalled();
   });
 
   it('sets up event listeners', () => {
     render(<AudioPlayer {...defaultProps} />);
     
-    expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
-    expect(mockAudioInstance.addEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
+    expect(mockAudioInstanceInstance.addEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
+    expect(mockAudioInstanceInstance.addEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
   });
 
   it('displays play button initially', () => {
@@ -74,11 +74,11 @@ describe('AudioPlayer Component', () => {
     
     // First click should pause (assuming auto-play succeeded)
     fireEvent.click(playButton);
-    expect(mockAudio.pause).toHaveBeenCalled();
+    expect(mockAudioInstance.pause).toHaveBeenCalled();
     
     // Second click should play
     fireEvent.click(playButton);
-    expect(mockAudio.play).toHaveBeenCalledTimes(2); // Once on mount, once on click
+    expect(mockAudioInstance.play).toHaveBeenCalledTimes(2); // Once on mount, once on click
   });
 
   it('formats time correctly', () => {
@@ -99,7 +99,7 @@ describe('AudioPlayer Component', () => {
     render(<AudioPlayer {...defaultProps} />);
     
     // Get the ended callback that was registered
-    const endedCallback = mockAudio.addEventListener.mock.calls.find(
+    const endedCallback = mockAudioInstance.addEventListener.mock.calls.find(
       call => call[0] === 'ended'
     )[1];
     
@@ -113,12 +113,12 @@ describe('AudioPlayer Component', () => {
     render(<AudioPlayer {...defaultProps} />);
     
     // Get the timeupdate callback
-    const timeUpdateCallback = mockAudio.addEventListener.mock.calls.find(
+    const timeUpdateCallback = mockAudioInstance.addEventListener.mock.calls.find(
       call => call[0] === 'timeupdate'
     )[1];
     
     // Simulate time update (halfway through)
-    mockAudio.currentTime = 90;
+    mockAudioInstance.currentTime = 90;
     timeUpdateCallback();
     
     const progressFill = document.querySelector('.progress-fill');
@@ -130,35 +130,35 @@ describe('AudioPlayer Component', () => {
     
     unmount();
     
-    expect(mockAudio.pause).toHaveBeenCalled();
-    expect(mockAudio.removeEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
-    expect(mockAudio.removeEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
+    expect(mockAudioInstance.pause).toHaveBeenCalled();
+    expect(mockAudioInstance.removeEventListener).toHaveBeenCalledWith('ended', expect.any(Function));
+    expect(mockAudioInstance.removeEventListener).toHaveBeenCalledWith('timeupdate', expect.any(Function));
   });
 
   it('handles audio play error gracefully', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockAudio.play.mockRejectedValue(new Error('Play failed'));
+    mockAudioInstance.play.mockRejectedValue(new Error('Play failed'));
     
     render(<AudioPlayer {...defaultProps} />);
     
-    expect(mockAudio.play).toHaveBeenCalled();
+    expect(mockAudioInstance.play).toHaveBeenCalled();
     // Should not crash the component
     
     consoleSpy.mockRestore();
   });
 
   it('uses fallback duration when audio duration is not available', () => {
-    mockAudio.duration = NaN;
+    mockAudioInstance.duration = NaN;
     
     render(<AudioPlayer {...defaultProps} />);
     
     // Get the timeupdate callback
-    const timeUpdateCallback = mockAudio.addEventListener.mock.calls.find(
+    const timeUpdateCallback = mockAudioInstance.addEventListener.mock.calls.find(
       call => call[0] === 'timeupdate'
     )[1];
     
     // Simulate time update
-    mockAudio.currentTime = 90;
+    mockAudioInstance.currentTime = 90;
     timeUpdateCallback();
     
     const progressFill = document.querySelector('.progress-fill');
@@ -170,7 +170,7 @@ describe('AudioPlayer Component', () => {
     render(<AudioPlayer {...propsWithoutCallback} />);
     
     // Get the ended callback
-    const endedCallback = mockAudio.addEventListener.mock.calls.find(
+    const endedCallback = mockAudioInstance.addEventListener.mock.calls.find(
       call => call[0] === 'ended'
     )[1];
     

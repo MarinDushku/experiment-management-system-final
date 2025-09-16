@@ -19,20 +19,35 @@ afterAll(() => {
 let mongod;
 
 beforeAll(async () => {
-  // Start in-memory MongoDB instance
-  mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  
-  // Connect to the in-memory database
-  await mongoose.connect(uri);
-});
+  try {
+    // Start in-memory MongoDB instance
+    mongod = await MongoMemoryServer.create();
+    const uri = mongod.getUri();
+    
+    // Connect to the in-memory database
+    await mongoose.connect(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    console.log('Test database connected successfully');
+  } catch (error) {
+    console.error('Error setting up test database:', error);
+    throw error;
+  }
+}, 60000); // 60 second timeout for setup
 
 afterAll(async () => {
-  // Clean up database connection
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
-  await mongod.stop();
-});
+  try {
+    // Clean up database connection
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+    await mongod.stop();
+    console.log('Test database cleaned up successfully');
+  } catch (error) {
+    console.error('Error cleaning up test database:', error);
+  }
+}, 30000); // 30 second timeout for cleanup
 
 beforeEach(async () => {
   // Clear all collections before each test

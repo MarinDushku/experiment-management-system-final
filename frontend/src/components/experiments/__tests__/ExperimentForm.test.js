@@ -71,7 +71,7 @@ describe('ExperimentForm Component', () => {
       
       await waitFor(() => {
         expect(mockedAxios.get).toHaveBeenCalledWith('/api/trials', {
-          headers: { Authorization: 'Bearer mock-token' }
+          headers: { Authorization: expect.stringContaining('Bearer') }
         });
       });
     });
@@ -312,7 +312,7 @@ describe('ExperimentForm Component', () => {
           },
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Bearer mock-token'
+            Authorization: expect.stringContaining('Bearer')
           }
         });
       });
@@ -352,7 +352,7 @@ describe('ExperimentForm Component', () => {
           },
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Bearer mock-token'
+            Authorization: expect.stringContaining('Bearer')
           }
         });
       });

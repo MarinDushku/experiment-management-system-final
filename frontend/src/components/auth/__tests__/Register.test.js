@@ -118,7 +118,9 @@ describe('Register Component', () => {
       });
     });
 
-    expect(screen.getByText('Registration successful! Please login.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Registration successful! Please login.')).toBeInTheDocument();
+    });
     
     // Form should be cleared after successful registration
     expect(usernameInput.value).toBe('');

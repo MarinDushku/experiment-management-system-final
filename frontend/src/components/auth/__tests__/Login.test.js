@@ -82,7 +82,9 @@ describe('Login Component', () => {
       });
     });
 
-    expect(window.location.href).toBe('/dashboard');
+    await waitFor(() => {
+      expect(window.location.href).toBe('/dashboard');
+    });
   });
 
   it('redirects admin users to admin panel', async () => {
@@ -106,7 +108,9 @@ describe('Login Component', () => {
       });
     });
 
-    expect(window.location.href).toBe('/admin');
+    await waitFor(() => {
+      expect(window.location.href).toBe('/admin');
+    });
   });
 
   it('displays error message on login failure', async () => {
