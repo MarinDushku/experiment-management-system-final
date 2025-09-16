@@ -60,7 +60,7 @@ const sessionStorageMock = {
 global.sessionStorage = sessionStorageMock;
 
 // Mock URL.createObjectURL
-global.URL.createObjectURL = jest.fn();
+global.URL.createObjectURL = jest.fn(() => 'mock-file-url');
 
 // Establish API mocking before all tests (disabled for now)
 // beforeAll(() => {

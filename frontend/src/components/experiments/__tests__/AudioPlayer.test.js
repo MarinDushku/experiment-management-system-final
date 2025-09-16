@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import AudioPlayer from '../AudioPlayer';
 
 describe('AudioPlayer Component', () => {
@@ -67,17 +67,26 @@ describe('AudioPlayer Component', () => {
     expect(playButton).toHaveTextContent('▶');
   });
 
-  it('toggles play/pause when button clicked', () => {
-    render(<AudioPlayer {...defaultProps} />);
+  it('toggles play/pause when button clicked', async () => {
+    const { rerender } = render(<AudioPlayer {...defaultProps} />);
     
     const playButton = screen.getByRole('button');
     
-    // First click should pause (assuming auto-play succeeded)
-    fireEvent.click(playButton);
+    // Wait for auto-play to complete and component to update
+    await waitFor(() => {
+      expect(playButton).toHaveTextContent('❚❚');
+    });
+    
+    // First click should pause
+    await act(async () => {
+      fireEvent.click(playButton);
+    });
     expect(mockAudioInstance.pause).toHaveBeenCalled();
     
     // Second click should play
-    fireEvent.click(playButton);
+    await act(async () => {
+      fireEvent.click(playButton);
+    });
     expect(mockAudioInstance.play).toHaveBeenCalledTimes(2); // Once on mount, once on click
   });
 
@@ -95,7 +104,7 @@ describe('AudioPlayer Component', () => {
     expect(screen.getByText('61:05')).toBeInTheDocument(); // Duration (simplified formatting)
   });
 
-  it('calls onEnded when audio ends', () => {
+  it('calls onEnded when audio ends', async () => {
     render(<AudioPlayer {...defaultProps} />);
     
     // Get the ended callback that was registered
@@ -104,12 +113,14 @@ describe('AudioPlayer Component', () => {
     )[1];
     
     // Simulate audio ending
-    endedCallback();
+    await act(async () => {
+      endedCallback();
+    });
     
     expect(defaultProps.onEnded).toHaveBeenCalled();
   });
 
-  it('updates progress bar based on time', () => {
+  it('updates progress bar based on time', async () => {
     render(<AudioPlayer {...defaultProps} />);
     
     // Get the timeupdate callback
@@ -119,7 +130,10 @@ describe('AudioPlayer Component', () => {
     
     // Simulate time update (halfway through)
     mockAudioInstance.currentTime = 90;
-    timeUpdateCallback();
+    
+    await act(async () => {
+      timeUpdateCallback();
+    });
     
     const progressFill = document.querySelector('.progress-fill');
     expect(progressFill).toHaveStyle({ width: '50%' });
@@ -147,7 +161,7 @@ describe('AudioPlayer Component', () => {
     consoleSpy.mockRestore();
   });
 
-  it('uses fallback duration when audio duration is not available', () => {
+  it('uses fallback duration when audio duration is not available', async () => {
     mockAudioInstance.duration = NaN;
     
     render(<AudioPlayer {...defaultProps} />);
@@ -159,13 +173,16 @@ describe('AudioPlayer Component', () => {
     
     // Simulate time update
     mockAudioInstance.currentTime = 90;
-    timeUpdateCallback();
+    
+    await act(async () => {
+      timeUpdateCallback();
+    });
     
     const progressFill = document.querySelector('.progress-fill');
     expect(progressFill).toHaveStyle({ width: '50%' }); // Should use prop duration
   });
 
-  it('handles missing onEnded callback gracefully', () => {
+  it('handles missing onEnded callback gracefully', async () => {
     const propsWithoutCallback = { ...defaultProps, onEnded: undefined };
     render(<AudioPlayer {...propsWithoutCallback} />);
     
@@ -175,6 +192,8 @@ describe('AudioPlayer Component', () => {
     )[1];
     
     // Should not crash when called without callback
-    expect(() => endedCallback()).not.toThrow();
+    await act(async () => {
+      expect(() => endedCallback()).not.toThrow();
+    });
   });
 });
