@@ -1,5 +1,9 @@
 // Format date to a readable string
 export const formatDate = (dateString) => {
+    if (dateString === null || dateString === undefined || dateString === '') {
+      return 'Invalid Date';
+    }
+    
     const options = { 
       year: 'numeric', 
       month: 'long', 
@@ -7,13 +11,19 @@ export const formatDate = (dateString) => {
       hour: '2-digit',
       minute: '2-digit'
     };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    return date.toLocaleDateString(undefined, options);
   };
   
   // Convert seconds to a formatted time string (MM:SS)
   export const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(Math.abs(seconds % 60));
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   
@@ -30,7 +40,7 @@ export const formatDate = (dateString) => {
   export const filterBySearchTerm = (items, searchTerm, fields) => {
     if (!searchTerm) return items;
     
-    const lowercasedTerm = searchTerm.toLowerCase();
+    const lowercasedTerm = searchTerm.trim().toLowerCase();
     
     return items.filter(item => {
       return fields.some(field => {

@@ -41,6 +41,24 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock scrollTo
 window.scrollTo = jest.fn();
 
+// Mock axios globally for all tests
+jest.mock('axios', () => ({
+  create: jest.fn(() => ({
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() }
+    },
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn()
+  })),
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn()
+}));
+
 // Mock localStorage
 const localStorageMock = {
   getItem: jest.fn(),

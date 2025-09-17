@@ -113,9 +113,12 @@ describe('Experiments Component', () => {
       render(<Experiments />);
       
       await waitFor(() => {
-        expect(screen.getByText('Trials: 2 trials configured')).toBeInTheDocument();
-        expect(screen.getByText('Trial: Single Trial')).toBeInTheDocument();
-        expect(screen.getByText('Trials: None assigned')).toBeInTheDocument();
+        // Check for trial information with flexible matching since text is split
+        expect(screen.getAllByText('Trials:')).toHaveLength(2); // Multiple experiments have Trials:
+        expect(screen.getByText(/2/)).toBeInTheDocument();
+        expect(screen.getByText(/trials configured/)).toBeInTheDocument();
+        expect(screen.getByText('Single Trial')).toBeInTheDocument();
+        expect(screen.getByText('None assigned')).toBeInTheDocument();
       });
     });
 
@@ -270,7 +273,7 @@ describe('Experiments Component', () => {
     it('creates experiment and refreshes list', async () => {
       mockedAxios.get
         .mockResolvedValueOnce({ data: [] }) // Initial load
-        .mockResolvedValueOnce({ data: [{ _id: '1', name: 'New Experiment' }] }); // After create
+        .mockResolvedValueOnce({ data: [{ _id: '1', name: 'New Experiment', status: 'Draft', trials: [] }] }); // After create
       mockedAxios.post.mockResolvedValue({});
       
       render(<Experiments />);
@@ -280,7 +283,11 @@ describe('Experiments Component', () => {
         fireEvent.click(screen.getByText('Add New Experiment'));
       });
       
-      // Submit form
+      // Submit form - wait for it to appear first
+      await waitFor(() => {
+        expect(screen.getByText('Submit Form')).toBeInTheDocument();
+      });
+      
       fireEvent.click(screen.getByText('Submit Form'));
       
       await waitFor(() => {
@@ -295,8 +302,10 @@ describe('Experiments Component', () => {
         );
       });
       
-      // Form should close
-      expect(screen.queryByTestId('experiment-form')).not.toBeInTheDocument();
+      // Form should close after successful submission
+      await waitFor(() => {
+        expect(screen.queryByTestId('experiment-form')).not.toBeInTheDocument();
+      });
     });
   });
 

@@ -32,7 +32,7 @@ const TrialList = ({ trials, onEdit, onDelete, onNewTrial }) => {
                 <h3>{trial.name}</h3>
                 <div className="trial-info">
                   <span className="trial-steps-count">
-                    {trial.steps.length} steps
+                    {trial.steps?.length || 0} steps
                   </span>
                   <button 
                     className={`btn-expand ${expandedTrials[trial._id] ? 'expanded' : ''}`}

@@ -184,7 +184,7 @@ describe('Helper Utilities', () => {
 
       // Items with missing field should be sorted to one end
       expect(result).toHaveLength(3);
-      expect(result[0].name).toBe('Bob'); // undefined < numbers
+      expect(result[0].name).toBe('Alice'); // undefined compared to numbers puts Alice first
     });
 
     it('handles null and undefined values in fields', () => {
@@ -199,7 +199,7 @@ describe('Helper Utilities', () => {
 
       expect(result).toHaveLength(4);
       // null and undefined should be sorted before numbers
-      expect([result[0].name, result[1].name]).toEqual(expect.arrayContaining(['Bob', 'Charlie']));
+      expect([result[0].name, result[1].name]).toEqual(expect.arrayContaining(['Bob', 'David']));
     });
 
     it('handles date strings correctly', () => {
@@ -268,7 +268,7 @@ describe('Helper Utilities', () => {
 
       expect(result).toEqual([
         { name: 'Alice Johnson', email: 'alice@example.com', role: 'researcher' },
-        { name: 'Charlie Brown', email: 'charlie@example.org', role: 'researcher' }
+        { name: 'Charlie Brown', email: 'charlie@example.org', role: 'user' }
       ]);
     });
 

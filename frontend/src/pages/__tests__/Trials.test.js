@@ -66,6 +66,11 @@ describe('Trials Component', () => {
     jest.clearAllMocks();
     global.confirm.mockReturnValue(false);
     mockLocalStorage.getItem.mockReturnValue('mock-token');
+    // Default axios mocks
+    mockedAxios.get.mockResolvedValue({ data: mockTrials });
+    mockedAxios.post.mockResolvedValue({ data: { _id: 'new-trial', name: 'Test Trial' } });
+    mockedAxios.put.mockResolvedValue({ data: { _id: 'updated-trial' } });
+    mockedAxios.delete.mockResolvedValue({});
   });
 
   describe('Component Loading', () => {
@@ -98,14 +103,15 @@ describe('Trials Component', () => {
       await waitFor(() => {
         expect(screen.getByText('Memory Task Trial')).toBeInTheDocument();
         expect(screen.getByText('Testing memory recall abilities')).toBeInTheDocument();
-        expect(screen.getByText('Steps: 3')).toBeInTheDocument();
+        expect(screen.getAllByText('Steps:')).toHaveLength(3);
+        expect(screen.getByText('3')).toBeInTheDocument();
         
         expect(screen.getByText('Attention Test')).toBeInTheDocument();
         expect(screen.getByText('Measuring sustained attention')).toBeInTheDocument();
-        expect(screen.getByText('Steps: 2')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
         
         expect(screen.getByText('Simple Trial')).toBeInTheDocument();
-        expect(screen.getByText('Steps: 0')).toBeInTheDocument();
+        expect(screen.getByText('0')).toBeInTheDocument();
       });
     });
 
@@ -323,7 +329,9 @@ describe('Trials Component', () => {
       });
       
       // Form should close and list should refresh
-      expect(screen.queryByTestId('trial-form')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('trial-form')).not.toBeInTheDocument();
+      });
       expect(mockedAxios.get).toHaveBeenCalledTimes(2);
     });
   });
@@ -357,7 +365,9 @@ describe('Trials Component', () => {
       });
       
       // Form should close and list should refresh
-      expect(screen.queryByTestId('trial-form')).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.queryByTestId('trial-form')).not.toBeInTheDocument();
+      });
     });
   });
 
@@ -506,9 +516,10 @@ describe('Trials Component', () => {
       render(<Trials />);
       
       await waitFor(() => {
-        expect(screen.getByText('Steps: 3')).toBeInTheDocument();
-        expect(screen.getByText('Steps: 2')).toBeInTheDocument();
-        expect(screen.getByText('Steps: 0')).toBeInTheDocument();
+        expect(screen.getAllByText('Steps:')).toHaveLength(3);
+        expect(screen.getByText('3')).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
+        expect(screen.getByText('0')).toBeInTheDocument();
       });
     });
 
