@@ -9,6 +9,69 @@ const fs = require('fs');
 const scriptPath = path.join(__dirname, '..', 'python', 'openbci_bridge.py');
 
 /**
+ * Robust JSON extraction from Python output
+ * @param {string} outputData - Raw output from Python script
+ * @returns {Object} - Parsed JSON object
+ */
+function extractJsonFromOutput(outputData) {
+    try {
+        // Method 1: Find JSON by looking for complete JSON blocks
+        const jsonPattern = /\{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*\}/g;
+        const matches = outputData.match(jsonPattern);
+        
+        if (matches && matches.length > 0) {
+            // Try to parse each match, starting from the last one (most likely to be the result)
+            for (let i = matches.length - 1; i >= 0; i--) {
+                try {
+                    const parsed = JSON.parse(matches[i]);
+                    if (parsed && typeof parsed === 'object') {
+                        console.log(`Successfully parsed JSON from match ${i}: ${matches[i]}`);
+                        return parsed;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+        
+        // Method 2: Look for lines that start and end with braces
+        const lines = outputData.split('\n');
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line.startsWith('{') && line.endsWith('}')) {
+                try {
+                    const parsed = JSON.parse(line);
+                    console.log(`Successfully parsed JSON from line: ${line}`);
+                    return parsed;
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+        
+        // Method 3: Fallback to original method
+        const jsonStartIndex = outputData.indexOf('{');
+        const jsonEndIndex = outputData.lastIndexOf('}');
+        
+        if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+            const jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+            try {
+                const parsed = JSON.parse(jsonData);
+                console.log(`Successfully parsed JSON with fallback method: ${jsonData}`);
+                return parsed;
+            } catch (e) {
+                throw new Error(`Failed to parse JSON: ${e.message}. Raw output: ${outputData}`);
+            }
+        }
+        
+        throw new Error(`No valid JSON found in output: ${outputData}`);
+    } catch (error) {
+        console.error('JSON extraction error:', error);
+        throw error;
+    }
+}
+
+/**
  * Direct connection to OpenBCI using the command that worked in testing
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -24,7 +87,7 @@ exports.directConnect = async (req, res) => {
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         // Try to use 'python' command from PATH first
-        const pythonPath = 'python';
+        const pythonPath = 'python3';
         
         const process = spawn(pythonPath, [
             scriptPath,
@@ -62,28 +125,8 @@ exports.directConnect = async (req, res) => {
             }
             
             try {
-                // More robust JSON extraction - accommodate debug logs before and after JSON
-                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
-                let jsonData = '';
-                
-                if (jsonMatches && jsonMatches.length > 0) {
-                    jsonData = jsonMatches[0];
-                    console.log(`Extracted JSON data: ${jsonData}`);
-                } else {
-                    // Fallback to previous method
-                    const jsonStartIndex = outputData.indexOf('{');
-                    const jsonEndIndex = outputData.lastIndexOf('}');
-                    
-                    if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
-                        jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
-                        console.log(`Fallback JSON extraction: ${jsonData}`);
-                    } else {
-                        throw new Error('No JSON data found in Python output');
-                    }
-                }
-                
-                // Try to parse the JSON
-                const result = JSON.parse(jsonData);
+                // Use the robust JSON extraction function
+                const result = extractJsonFromOutput(outputData);
                 
                 if (result.status === 'success') {
                     // Update the OpenBCI service state
@@ -162,7 +205,7 @@ exports.scanPorts = async (req, res) => {
         console.log('Starting port scan for OpenBCI devices');
         
         // Use direct simple scan first (non-brainflow)
-        const pythonPath = 'python';
+        const pythonPath = 'python3';
         const testPortScript = path.join(__dirname, '..', 'python', 'test_port.py');
         
         // Check if test_port.py exists, if not create it
@@ -253,13 +296,11 @@ if __name__ == "__main__":
                 }
                 
                 // Try to parse the JSON from the output
-                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
                 let result;
-                
-                if (jsonMatches && jsonMatches.length > 0) {
-                    result = JSON.parse(jsonMatches[0]);
-                } else {
-                    // Fallback to service method
+                try {
+                    result = extractJsonFromOutput(outputData);
+                } catch (parseError) {
+                    console.error('JSON parsing failed, falling back to service method:', parseError);
                     result = await openBCIService.scanPorts();
                 }
                 
@@ -317,7 +358,7 @@ exports.resetBoard = async (req, res) => {
         console.log(`Attempting to reconnect on port: ${port}`);
         
         // Use python command from PATH
-        const pythonPath = 'python';
+        const pythonPath = 'python3';
         
         const process = spawn(pythonPath, [
             scriptPath,
@@ -353,26 +394,8 @@ exports.resetBoard = async (req, res) => {
             }
             
             try {
-                // Extract JSON data
-                const jsonMatches = outputData.match(/(\{[\s\S]*\})/);
-                let jsonData = '';
-                
-                if (jsonMatches && jsonMatches.length > 0) {
-                    jsonData = jsonMatches[0];
-                } else {
-                    // Fallback to previous method
-                    const jsonStartIndex = outputData.indexOf('{');
-                    const jsonEndIndex = outputData.lastIndexOf('}');
-                    
-                    if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
-                        jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
-                    } else {
-                        throw new Error('No JSON data found in Python output');
-                    }
-                }
-                
-                // Parse JSON
-                const result = JSON.parse(jsonData);
+                // Use the robust JSON extraction function
+                const result = extractJsonFromOutput(outputData);
                 
                 if (result.status === 'success') {
                     // Update the OpenBCI service state
@@ -643,5 +666,9 @@ exports.getSerialPorts = async (req, res) => {
         });
     }
 };
+
+// Add missing methods that the frontend expects
+exports.checkStatus = exports.getConnectionStatus;
+exports.scanDevices = exports.scanPorts;
 
 module.exports = exports;

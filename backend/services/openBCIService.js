@@ -3,10 +3,67 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+/**
+ * Robust JSON extraction from Python output
+ */
+function extractJsonFromOutput(outputData) {
+    try {
+        // Method 1: Find JSON by looking for complete JSON blocks
+        const jsonPattern = /\{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*\}/g;
+        const matches = outputData.match(jsonPattern);
+        
+        if (matches && matches.length > 0) {
+            // Try to parse each match, starting from the last one
+            for (let i = matches.length - 1; i >= 0; i--) {
+                try {
+                    const parsed = JSON.parse(matches[i]);
+                    if (parsed && typeof parsed === 'object') {
+                        return parsed;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+        
+        // Method 2: Look for lines that start and end with braces
+        const lines = outputData.split('\n');
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line.startsWith('{') && line.endsWith('}')) {
+                try {
+                    const parsed = JSON.parse(line);
+                    return parsed;
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+        
+        // Method 3: Fallback to original method
+        const jsonStartIndex = outputData.indexOf('{');
+        const jsonEndIndex = outputData.lastIndexOf('}');
+        
+        if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+            const jsonData = outputData.substring(jsonStartIndex, jsonEndIndex + 1);
+            try {
+                const parsed = JSON.parse(jsonData);
+                return parsed;
+            } catch (e) {
+                throw new Error(`Failed to parse JSON: ${e.message}`);
+            }
+        }
+        
+        throw new Error(`No valid JSON found in output`);
+    } catch (error) {
+        throw error;
+    }
+}
+
 class OpenBCIService {
     constructor() {
         // Use system Python instead of hardcoded path
-        this.pythonPath = 'python';
+        this.pythonPath = 'python3';
         this.scriptPath = path.join(__dirname, '..', 'python', 'openbci_bridge.py');
         
         // Log the paths for debugging
@@ -517,7 +574,9 @@ print(json.dumps(result))
             }
             
             console.log(`Starting recording on port: ${this.serialPort}, experiment: ${experimentName}`);
-            const result = await this.executePythonScript({
+            
+            // Start recording with streaming
+            const result = await this.startRecordingWithStreaming({
                 action: 'start_recording',
                 serial_port: this.serialPort,
                 experiment_name: experimentName || 'OpenBCI Recording'
@@ -530,6 +589,137 @@ print(json.dumps(result))
             console.error('Error starting EEG recording:', error);
             throw error;
         }
+    }
+
+    /**
+     * Start recording with real-time streaming to WebSockets
+     * @param {Object} args - Arguments for the Python script
+     * @returns {Promise<Object>} - Recording result
+     */
+    async startRecordingWithStreaming(args) {
+        return new Promise((resolve, reject) => {
+            // Import socket.io if available
+            let io = null;
+            try {
+                const server = require('../server');
+                io = server.io;
+            } catch (e) {
+                console.log('Socket.io not available for streaming');
+            }
+
+            // Combine all arguments
+            const allArgs = [this.scriptPath, ...Object.entries(args).map(([key, value]) => `--${key}=${value}`)];
+            
+            console.log(`Executing streaming: ${this.pythonPath} ${allArgs.join(' ')}`);
+            
+            // Spawn Python process for long-running recording
+            const process = spawn(this.pythonPath, allArgs);
+            
+            let outputData = '';
+            let errorData = '';
+            let hasReturned = false;
+            
+            // Store process reference for cleanup
+            this.recordingProcess = process;
+            
+            // Collect output data and handle EEG streams
+            process.stdout.on('data', (data) => {
+                const output = data.toString();
+                
+                // Check for EEG streaming data
+                const lines = output.split('\n');
+                lines.forEach(line => {
+                    if (line.startsWith('EEG_STREAM:')) {
+                        // Extract and forward EEG data
+                        try {
+                            const eegData = JSON.parse(line.substring(11)); // Remove "EEG_STREAM:" prefix
+                            
+                            // Forward to WebSocket clients
+                            if (io) {
+                                io.emit('eeg-realtime-data', {
+                                    timestamp: eegData.timestamp,
+                                    experimentName: eegData.experiment_name,
+                                    channels: eegData.channels,
+                                    boardType: eegData.board_type
+                                });
+                            }
+                            
+                            console.log(`Streamed EEG data: ${eegData.channels.length} channels`);
+                        } catch (e) {
+                            console.error('Error parsing EEG stream data:', e);
+                        }
+                    } else if (line.trim() && !line.startsWith('EEG_STREAM:')) {
+                        // Regular output
+                        console.log(`Python stdout: ${line}`);
+                        outputData += line + '\n';
+                    }
+                });
+            });
+            
+            // Collect error data
+            process.stderr.on('data', (data) => {
+                const error = data.toString();
+                console.error(`Python stderr: ${error}`);
+                errorData += error;
+            });
+            
+            // Set timeout to return success after initial setup (10 seconds)
+            const setupTimeout = setTimeout(() => {
+                if (!hasReturned) {
+                    hasReturned = true;
+                    
+                    // Check if we got the initial success response
+                    try {
+                        const result = extractJsonFromOutput(outputData);
+                        resolve(result);
+                    } catch (e) {
+                        // Assume success if streaming started without errors
+                        resolve({
+                            status: 'success',
+                            message: 'EEG recording and streaming started',
+                            timestamp: new Date().toISOString(),
+                            streaming: true
+                        });
+                    }
+                }
+            }, 10000); // 10 second timeout for initial setup
+            
+            // Handle process completion (this should not happen during streaming)
+            process.on('close', (code) => {
+                clearTimeout(setupTimeout);
+                console.log(`Python streaming process exited with code ${code}`);
+                
+                if (!hasReturned) {
+                    hasReturned = true;
+                    
+                    if (code !== 0) {
+                        console.error(`Process exited with code ${code}: ${errorData}`);
+                        return reject(new Error(`Process exited with code ${code}: ${errorData}`));
+                    }
+                    
+                    try {
+                        const result = extractJsonFromOutput(outputData);
+                        resolve(result);
+                    } catch (error) {
+                        console.error('Error parsing Python output:', error);
+                        reject(new Error(`Error parsing Python output: ${error.message}`));
+                    }
+                }
+                
+                // Clean up process reference
+                this.recordingProcess = null;
+            });
+            
+            // Handle process errors
+            process.on('error', (error) => {
+                clearTimeout(setupTimeout);
+                if (!hasReturned) {
+                    hasReturned = true;
+                    console.error('Failed to start Python streaming process:', error);
+                    reject(new Error(`Failed to start Python streaming process: ${error.message}`));
+                }
+            });
+        });
     }
 
     /**

@@ -22,7 +22,8 @@
         "jsonwebtoken": "^9.0.1",
         "mongoose": "^7.4.3",
         "multer": "^1.4.5-lts.1",
-        "research-experiment-management-system": "file:.."
+        "research-experiment-management-system": "file:..",
+        "socket.io": "^4.8.1"
     },
     "devDependencies": {
         "@types/jest": "^29.5.12",

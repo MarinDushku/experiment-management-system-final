@@ -11,6 +11,9 @@ import Experiments from './pages/Experiments';
 import Trials from './pages/Trials';
 import Steps from './pages/Steps';
 import ExperimentRun from './components/experiments/ExperimentRun';
+import EEGTest from './pages/EEGTest';
+import DeviceConnection from './components/devices/DeviceConnection';
+import ParticipantExperiment from './pages/ParticipantExperiment';
 
 // Route guard component
 const ProtectedRoute = ({ element, requiredRoles }) => {
@@ -64,6 +67,18 @@ const routes = [
   {
     path: '/steps',
     element: <ProtectedRoute element={<Steps />} requiredRoles={['researcher', 'admin']} />
+  },
+  {
+    path: '/devices',
+    element: <ProtectedRoute element={<DeviceConnection />} requiredRoles={['user', 'researcher', 'admin']} />
+  },
+  {
+    path: '/eeg-test',
+    element: <ProtectedRoute element={<EEGTest />} requiredRoles={['user', 'researcher', 'admin']} />
+  },
+  {
+    path: '/participant/:experimentId',
+    element: <ProtectedRoute element={<ParticipantExperiment />} requiredRoles={['user']} />
   },
   {
     path: '*',

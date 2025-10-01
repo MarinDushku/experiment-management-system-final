@@ -3,7 +3,7 @@ import axios from 'axios';
 import './OpenBCIConnection.css';
 
 const OpenBCIConnection = ({ onConnectionChange }) => {
-    const [serialPort, setSerialPort] = useState('COM3'); // Default to COM3 for Windows
+    const [serialPort, setSerialPort] = useState('/dev/ttyUSB0'); // Default to ttyUSB0 for WSL/Linux
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -252,7 +252,7 @@ const OpenBCIConnection = ({ onConnectionChange }) => {
                                 ) : (
                                     <>
                                         <i className="icon-direct-connect"></i>
-                                        <span>Direct Connect to COM3</span>
+                                        <span>Direct Connect to /dev/ttyUSB0</span>
                                     </>
                                 )}
                             </button>

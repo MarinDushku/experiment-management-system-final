@@ -82,6 +82,55 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+        
+        {/* Participant section for regular users */}
+        {user?.role === 'user' && (
+          <div className="participant-section">
+            <h2>Experiment Participation</h2>
+            <div className="participant-cards">
+              <div className="action-card">
+                <div className="card-icon">
+                  <i className="fas fa-link"></i>
+                </div>
+                <div className="card-content">
+                  <h3>Connect to Experiment</h3>
+                  <p>Join an experiment session by connecting to an admin device</p>
+                  <Link to="/devices" className="action-button">
+                    Connect to Device
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="action-card">
+                <div className="card-icon">
+                  <i className="fas fa-brain"></i>
+                </div>
+                <div className="card-content">
+                  <h3>Join EEG Test</h3>
+                  <p>Participate in EEG experiments and tasks</p>
+                  <Link to="/eeg-test" className="action-button">
+                    Start EEG Test
+                  </Link>
+                </div>
+              </div>
+            </div>
+            
+            <div className="participant-info">
+              <h3>How to Participate</h3>
+              <ol>
+                <li><strong>Connect:</strong> Use "Connect to Device" to pair with the admin's computer</li>
+                <li><strong>Enter Code:</strong> The admin will provide a 6-digit pairing code</li>
+                <li><strong>Participate:</strong> Follow experiment instructions on your device</li>
+                <li><strong>Stay Connected:</strong> Keep this device connected during the experiment</li>
+              </ol>
+              
+              <div className="status-info">
+                <p><strong>Your Role:</strong> Experiment Participant</p>
+                <p><strong>Access Level:</strong> You can participate in experiments but cannot create or manage them</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import RestStep from './steps/RestStep';
 import QuestionStep from './steps/QuestionStep';
 import ExperimentComplete from './steps/ExperimentComplete';
 import OpenBCIConnection from './OpenBCIConnection';
+import LiveEEGViewer from './LiveEEGViewer';
 import './ExperimentRun.css';
 
 const ExperimentRun = () => {
@@ -106,6 +107,7 @@ const ExperimentRun = () => {
   
   // Handle OpenBCI connection status change
   const handleOpenBCIConnectionChange = (connected) => {
+    console.log('OpenBCI connection status changed:', connected);
     setIsOpenBCIConnected(connected);
   };
   
@@ -148,6 +150,7 @@ const ExperimentRun = () => {
           if (response.data.success) {
             console.log("EEG recording started successfully");
             setEegRecordingStarted(true);
+            console.log('DEBUG: EEG recording state set to true');
           } else {
             console.warn("Failed to start EEG recording, but continuing experiment.");
           }
@@ -570,6 +573,27 @@ const ExperimentRun = () => {
         </div>
         
         {renderStepComponent()}
+      </div>
+      
+      {/* Live EEG Visualization - only show when recording */}
+      {console.log('EEG Debug:', { eegRecordingStarted, isOpenBCIConnected, experimentName })}
+      {eegRecordingStarted && isOpenBCIConnected && (
+        <div className="live-eeg-container">
+          <h4>🧠 Live EEG Visualization</h4>
+          <LiveEEGViewer 
+            experimentId={id}
+            experimentName={experimentName}
+            isRecording={eegRecordingStarted}
+          />
+        </div>
+      )}
+      
+      {/* Debug info - remove this later */}
+      <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px', fontSize: '12px', zIndex: 9999 }}>
+        <div>OpenBCI Connected: {isOpenBCIConnected ? '✅' : '❌'}</div>
+        <div>EEG Recording: {eegRecordingStarted ? '✅' : '❌'}</div>
+        <div>Experiment: {experimentName || 'None'}</div>
+        <div>Should Show EEG: {(eegRecordingStarted && isOpenBCIConnected) ? '✅' : '❌'}</div>
       </div>
       
       <div className="experiment-footer">

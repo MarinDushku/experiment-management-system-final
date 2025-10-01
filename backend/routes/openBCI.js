@@ -8,7 +8,31 @@ const { protect } = require('../middleware/auth');
 const asyncHandler = fn => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Direct connect to COM3
+// Connection status check
+router.get('/status', protect, asyncHandler(async (req, res) => {
+  console.log('Checking OpenBCI connection status');
+  await openBCIController.checkStatus(req, res);
+}));
+
+// Connect to OpenBCI device
+router.post('/connect', protect, asyncHandler(async (req, res) => {
+  console.log('Connecting to OpenBCI device');
+  await openBCIController.connect(req, res);
+}));
+
+// Disconnect from OpenBCI device
+router.post('/disconnect', protect, asyncHandler(async (req, res) => {
+  console.log('Disconnecting from OpenBCI device');
+  await openBCIController.disconnect(req, res);
+}));
+
+// Scan for OpenBCI devices
+router.get('/scan', protect, asyncHandler(async (req, res) => {
+  console.log('Scanning for OpenBCI devices');
+  await openBCIController.scanDevices(req, res);
+}));
+
+// Direct connect to specified port
 router.post('/direct-connect', protect, asyncHandler(async (req, res) => {
   console.log('Direct connecting to OpenBCI');
   await openBCIController.directConnect(req, res);

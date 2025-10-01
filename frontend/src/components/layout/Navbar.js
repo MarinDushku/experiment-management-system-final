@@ -38,6 +38,9 @@ const Navbar = () => {
         <Link to="/steps">Steps</Link>
       </li>
       <li>
+        <Link to="/devices">Device Connection</Link>
+      </li>
+      <li>
         <a href="#!" onClick={handleLogout}>Logout</a>
       </li>
     </ul>
@@ -61,6 +64,9 @@ const Navbar = () => {
         <Link to="/steps">Steps</Link>
       </li>
       <li>
+        <Link to="/devices">Device Connection</Link>
+      </li>
+      <li>
         <a href="#!" onClick={handleLogout}>Logout</a>
       </li>
     </ul>
@@ -70,6 +76,9 @@ const Navbar = () => {
     <ul>
       <li>
         <Link to="/dashboard">Dashboard</Link>
+      </li>
+      <li>
+        <Link to="/devices">Device Connection</Link>
       </li>
       <li>
         <a href="#!" onClick={handleLogout}>Logout</a>

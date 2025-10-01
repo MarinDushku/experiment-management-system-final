@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
@@ -38,17 +40,29 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong' });
 });
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  // Set static folder
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../frontend', 'build', 'index.html'));
-  });
-}
+// Note: Frontend is served separately via Docker, so backend runs in API-only mode
+console.log('Backend running in API-only mode - Frontend served separately');
 
 const PORT = process.env.PORT || 5000;
+
+// Create HTTP server and Socket.IO
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+      /^http:\/\/172\.\d+\.\d+\.\d+:3000$/,
+      /^http:\/\/10\.\d+\.\d+\.\d+:3000$/
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Initialize Socket.IO handlers
+require('./sockets/socketHandlers')(io);
 
 // When MongoDB is connected, rebuild indexes (temporary fix)
 const mongoose = require('mongoose');
@@ -69,7 +83,10 @@ mongoose.connection.once('open', async () => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+  console.log(`WebSocket server ready for device connections`);
+});
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

@@ -28,6 +28,7 @@ services:
       MONGO_URI: mongodb://admin:password123@mongodb:27017/experiment-management?authSource=admin
       PORT: 5000
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      DISPLAY: ${DISPLAY:-:0}
     ports:
       - "5000:5000"
     depends_on:
@@ -35,6 +36,8 @@ services:
     volumes:
       - ./uploads:/usr/src/app/uploads
       - /dev:/dev  # For USB device access (OpenBCI)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 socket for GUI
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw  # X11 auth
     privileged: true  # Required for USB device access
     networks:
       - experiment-network

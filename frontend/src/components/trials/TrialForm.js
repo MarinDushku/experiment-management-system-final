@@ -150,10 +150,10 @@ const TrialForm = ({ trial, onSubmit, onCancel }) => {
     }));
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Format data for API
+    // Format data for parent component to handle API call
     const trialData = {
       name: formData.name,
       description: formData.description,
@@ -164,28 +164,7 @@ const TrialForm = ({ trial, onSubmit, onCancel }) => {
     };
     
     console.log("Submitting trial data:", trialData);
-    
-    try {
-      const token = localStorage.getItem('token');
-      const url = trial && trial._id ? `/api/trials/${trial._id}` : '/api/trials';
-      const method = trial && trial._id ? 'put' : 'post';
-      
-      const response = await axios({
-        method,
-        url,
-        data: trialData,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      console.log("Trial saved successfully:", response.data);
-      onSubmit(response.data);
-    } catch (err) {
-      console.error("Error saving trial:", err.response?.data || err.message);
-      setError('Failed to save trial. Please try again.');
-    }
+    onSubmit(trialData);
   };
   
   if (loading) {

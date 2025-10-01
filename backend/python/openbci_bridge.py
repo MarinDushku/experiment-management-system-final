@@ -80,8 +80,8 @@ def init_board(serial_port):
                 'board_type': 'cyton_daisy'
             }
         except Exception as e1:
-            print(f"Failed to connect to Cyton+Daisy: {e1}")
-            print(traceback.format_exc())
+            print(f"Failed to connect to Cyton+Daisy: {e1}", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
             
             # Try with Cyton only (8 channels)
             try:
@@ -107,12 +107,13 @@ def init_board(serial_port):
                     'board_type': 'cyton'
                 }
             except Exception as e2:
-                print(f"Failed to connect to Cyton: {e2}")
-                print(traceback.format_exc())
+                print(f"Failed to connect to Cyton: {e2}", file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
                 raise Exception(f"Could not connect to either board type: {e1}, {e2}")
     except Exception as e:
-        print(f"Connection error: {e}")
-        print(traceback.format_exc())
+        # Print error to stderr to avoid contaminating JSON output
+        print(f"Connection error: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
         return {
             'status': 'error',
             'message': str(e)
@@ -172,7 +173,7 @@ def check_connection(serial_port):
                 'board_type': 'cyton_daisy'
             }
         except Exception as e:
-            print(f"Failed to connect to Cyton+Daisy during check: {e}")
+            print(f"Failed to connect to Cyton+Daisy during check: {e}", file=sys.stderr)
             
             # Try Cyton only
             try:
@@ -195,7 +196,7 @@ def check_connection(serial_port):
                     'board_type': 'cyton'
                 }
             except Exception as e2:
-                print(f"Failed to connect to Cyton during check: {e2}")
+                print(f"Failed to connect to Cyton during check: {e2}", file=sys.stderr)
                 
                 # Reset global variables
                 current_board = None
@@ -209,7 +210,7 @@ def check_connection(serial_port):
                 }
     except Exception as e:
         print(f"Connection check error: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         
         # Reset global variables
         current_board = None
@@ -254,7 +255,7 @@ def start_recording(serial_port, experiment_name=''):
                 }
             except Exception as e:
                 print(f"Error starting stream with existing board: {e}")
-                print(traceback.format_exc())
+                print(traceback.format_exc(), file=sys.stderr)
                 print("Will try to reconnect")
                 
                 # Reset global variables
@@ -311,7 +312,7 @@ def start_recording(serial_port, experiment_name=''):
             }
         except Exception as e1:
             print(f"Failed to start recording with Cyton+Daisy: {e1}")
-            print(traceback.format_exc())
+            print(traceback.format_exc(), file=sys.stderr)
             # Try Cyton only
             try:
                 print("Trying to start recording with Cyton...")
@@ -341,11 +342,11 @@ def start_recording(serial_port, experiment_name=''):
                 }
             except Exception as e2:
                 print(f"Failed to start recording with Cyton: {e2}")
-                print(traceback.format_exc())
+                print(traceback.format_exc(), file=sys.stderr)
                 raise Exception(f"Could not start recording with either board type: {e1}, {e2}")
     except Exception as e:
         print(f"Start recording error: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         return {
             'status': 'error',
             'message': str(e)
@@ -385,7 +386,7 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None, exp
                 stop_visualizer()
             except Exception as e:
                 print(f"Error with existing board: {e}")
-                print(traceback.format_exc())
+                print(traceback.format_exc(), file=sys.stderr)
                 
                 # Stop visualizer anyway if there was an error
                 stop_visualizer()
@@ -426,7 +427,7 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None, exp
                 stop_visualizer()
             except Exception as e1:
                 print(f"Failed with Cyton+Daisy: {e1}")
-                print(traceback.format_exc())
+                print(traceback.format_exc(), file=sys.stderr)
                 
                 # Try Cyton only
                 try:
@@ -452,7 +453,7 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None, exp
                     stop_visualizer()
                 except Exception as e2:
                     print(f"Failed with Cyton: {e2}")
-                    print(traceback.format_exc())
+                    print(traceback.format_exc(), file=sys.stderr)
                     
                     # Stop visualizer if running anyway
                     stop_visualizer()
@@ -521,7 +522,7 @@ def stop_recording(serial_port, experiment_id, duration=5, output_file=None, exp
         }
     except Exception as e:
         print(f"Stop recording error: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         
         # Stop visualizer if there was an error
         stop_visualizer()
@@ -568,7 +569,7 @@ def disconnect(serial_port):
                 }
             except Exception as e:
                 print(f"Error disconnecting existing board: {e}")
-                print(traceback.format_exc())
+                print(traceback.format_exc(), file=sys.stderr)
                 
                 # Stop visualizer if there was an error
                 stop_visualizer()
@@ -644,7 +645,7 @@ def disconnect(serial_port):
                 }
     except Exception as e:
         print(f"Disconnect error: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         
         # Stop visualizer if running anyway
         stop_visualizer()
@@ -660,21 +661,24 @@ def disconnect(serial_port):
         }
 
 def stream_data_to_visualizer():
-    """Thread function to stream data to the visualizer process"""
-    global stream_running, current_board, current_board_id
+    """Legacy function - now redirects to web streaming"""
+    stream_data_to_web()
+
+def stream_data_to_web(experiment_name=''):
+    """Stream EEG data to web interface via stdout"""
+    global stream_running, current_board, current_board_id, is_streaming
     
-    print("Data streaming thread started")
+    print(f"Web-based EEG data streaming started for experiment: {experiment_name}")
     
     # Get sampling rate and channel list
     if current_board_id is not None:
         sampling_rate = BoardShim.get_sampling_rate(current_board_id)
         eeg_channels = BoardShim.get_eeg_channels(current_board_id)
     else:
-        print("Error: No board connected")
+        print("Error: No board connected", file=sys.stderr)
         return
     
-    # Calculate sleep time based on sampling rate 
-    # (smaller for higher sampling rates)
+    # Calculate sleep time based on sampling rate
     sleep_time = 1.0 / (sampling_rate / 10)  # Process data in small batches
     
     # Keep track of last processed data point
@@ -703,88 +707,52 @@ def stream_data_to_visualizer():
                         # Extract single sample across all channels
                         sample = [float(eeg_data[j][i]) for j in range(eeg_data.shape[0])]
                         
-                        # Send sample to visualizer stdin
-                        if visualizer_process and visualizer_process.stdin:
-                            try:
-                                json_data = json.dumps(sample) + '\n'
-                                visualizer_process.stdin.write(json_data)
-                                visualizer_process.stdin.flush()
-                            except:
-                                pass
+                        # Create data packet for web interface
+                        data_packet = {
+                            'type': 'eeg_data',
+                            'timestamp': time.time(),
+                            'experiment_name': experiment_name,
+                            'channels': sample,
+                            'sample_number': i + last_idx,
+                            'board_type': 'cyton_daisy' if current_board_id == BoardIds.CYTON_DAISY_BOARD else 'cyton'
+                        }
+                        
+                        # Output to stdout with special prefix for Node.js to capture
+                        print(f"EEG_STREAM:{json.dumps(data_packet)}")
+                        sys.stdout.flush()
+                        
         except Exception as e:
-            print(f"Error in streaming thread: {e}")
-            print(traceback.format_exc())
+            print(f"Error in web streaming: {e}", file=sys.stderr)
             time.sleep(0.1)  # Prevent tight loop if error
     
-    print("Data streaming thread stopped")
+    print("Web-based EEG data streaming stopped", file=sys.stderr)
 
 def start_visualizer(experiment_name=''):
-    """Start the visualizer process"""
-    global visualizer_process, stream_running, data_thread, current_board_id
+    """Start web-based EEG streaming instead of GUI visualizer"""
+    global stream_running, data_thread, current_board_id
     
-    # Check if already running
-    if visualizer_process is not None:
-        print("Visualizer already running")
+    # Check if already streaming
+    if stream_running:
+        print("EEG streaming already active")
         return
     
     try:
-        # Get path to visualizer script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        visualizer_path = os.path.join(script_dir, "brainwave_visualizer.py")
-        
-        # Check if visualizer script exists
-        if not os.path.exists(visualizer_path):
-            print(f"Visualizer script not found at {visualizer_path}")
-            # Create a minimal script if it doesn't exist
-            with open(visualizer_path, 'w') as f:
-                f.write("""
-import sys
-import json
-print("Minimal visualizer started - please run pip install matplotlib to enable full visualization")
-while True:
-    try:
-        line = sys.stdin.readline()
-        if not line:
-            break
-        # Just print data received
-        print(f"Received: {line.strip()}")
-    except:
-        break
-""")
-        
         # Determine board type
         board_type = 'cyton_daisy' if current_board_id == BoardIds.CYTON_DAISY_BOARD else 'cyton'
         
-        # Build command
-        cmd = [
-            sys.executable,
-            visualizer_path,
-            '--board_type', board_type,
-            '--experiment_name', experiment_name or 'OpenBCI Recording'
-        ]
+        print(f"Starting web-based EEG streaming for {board_type}, experiment: {experiment_name}")
         
-        # Start visualizer in a separate process
-        print(f"Starting visualizer: {' '.join(cmd)}")
-        visualizer_process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            text=True,
-            # Don't capture stdout/stderr to avoid blocking
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        
-        # Start data streaming thread
+        # Start data streaming thread for web interface
         stream_running = True
-        data_thread = threading.Thread(target=stream_data_to_visualizer)
+        data_thread = threading.Thread(target=stream_data_to_web, args=(experiment_name,))
         data_thread.daemon = True
         data_thread.start()
         
-        print(f"Visualizer started successfully for {board_type}")
+        print(f"Web-based EEG streaming started successfully for {board_type}")
         
     except Exception as e:
-        print(f"Error starting visualizer: {e}")
-        print(traceback.format_exc())
+        print(f"Error starting EEG streaming: {e}")
+        print(traceback.format_exc(), file=sys.stderr)
 
 def stop_visualizer():
     """Stop the visualizer process"""
@@ -867,7 +835,7 @@ if __name__ == '__main__':
             result = {'status': 'error', 'message': f'Unknown action: {args.action}'}
     except Exception as e:
         print(f"Error executing action: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         result = {'status': 'error', 'message': str(e)}
     
     # Output JSON result for Node.js to parse

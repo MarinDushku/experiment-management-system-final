@@ -179,10 +179,10 @@ const ExperimentForm = ({ experiment, onSubmit, onCancel }) => {
     }));
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Format data for API
+    // Format data for parent component to handle API call
     const experimentData = {
       name: formData.name,
       description: formData.description,
@@ -194,28 +194,7 @@ const ExperimentForm = ({ experiment, onSubmit, onCancel }) => {
     };
     
     console.log("Submitting experiment data:", experimentData);
-    
-    try {
-      const token = localStorage.getItem('token');
-      const url = experiment && experiment._id ? `/api/experiments/${experiment._id}` : '/api/experiments';
-      const method = experiment && experiment._id ? 'put' : 'post';
-      
-      const response = await axios({
-        method,
-        url,
-        data: experimentData,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      console.log("Experiment saved successfully:", response.data);
-      onSubmit(response.data);
-    } catch (err) {
-      console.error("Error saving experiment:", err.response?.data || err.message);
-      setError('Failed to save experiment. Please try again.');
-    }
+    onSubmit(experimentData);
   };
   
   if (loading) {
