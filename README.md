@@ -21,15 +21,17 @@ This system enables secure communication between:
 
 ### Prerequisites
 
-- **Ubuntu 18.04 LTS or newer** (for admin device)
-- **Node.js 14+ and npm**
+- **Admin Device**: Ubuntu 18.04+ OR Windows 10+ (for experiment control)
+- **Node.js 18+ and npm**
 - **MongoDB**
 - **WiFi Network** (for device communication)
 - **OpenBCI Hardware** (optional, for EEG experiments)
 
-### Installation Steps
+---
 
-#### 1. System Preparation
+## 🐧 **Linux (Ubuntu) Setup**
+
+### 1. System Preparation
 
 ```bash
 # Update system packages
@@ -44,7 +46,7 @@ node --version  # Should be v18+
 npm --version
 ```
 
-#### 2. MongoDB Installation
+### 2. MongoDB Installation
 
 ```bash
 # Import MongoDB GPG key
@@ -63,13 +65,76 @@ sudo systemctl enable mongod
 sudo systemctl status mongod  # Verify running
 ```
 
-#### 3. Project Installation
+---
 
+## 🪟 **Windows Setup**
+
+### 1. System Preparation
+
+1. **Install Node.js**:
+   - Download from: https://nodejs.org/en/download/
+   - Choose "Windows Installer (.msi)" for your system (x64 recommended)
+   - Run installer and follow the setup wizard
+   - ✅ Check "Add to PATH" option
+
+2. **Verify Installation**:
+   ```cmd
+   # Open Command Prompt (cmd) or PowerShell
+   node --version
+   npm --version
+   ```
+
+### 2. MongoDB Installation
+
+**Option A: MongoDB Community Server (Recommended)**
+1. Download MongoDB Community Server: https://www.mongodb.com/try/download/community
+2. Choose "Windows" and run the `.msi` installer
+3. During installation:
+   - ✅ Choose "Complete" setup
+   - ✅ Install MongoDB as a Service
+   - ✅ Install MongoDB Compass (GUI tool)
+4. MongoDB will start automatically as a Windows service
+
+**Option B: MongoDB Atlas (Cloud)**
+1. Create free account at: https://www.mongodb.com/atlas
+2. Create a free cluster
+3. Get connection string and update your `.env` file
+
+**Verify MongoDB is Running**:
+```cmd
+# Check if MongoDB service is running
+sc query MongoDB
+
+# Or check if port 27017 is listening
+netstat -an | findstr :27017
+```
+
+### 3. Git Installation (if needed)
+- Download Git for Windows: https://git-scm.com/download/win
+- Use Git Bash or Command Prompt for git commands
+
+---
+
+## 📦 **Project Installation (Both Linux & Windows)**
+
+### 1. Clone the Repository
+
+**Linux (Terminal)**:
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/experiment-management-system.git
-cd experiment-management-system
+git clone https://github.com/MarinDushku/experiment-management-system-final.git
+cd experiment-management-system-final
+```
 
+**Windows (Command Prompt or Git Bash)**:
+```cmd
+git clone https://github.com/MarinDushku/experiment-management-system-final.git
+cd experiment-management-system-final
+```
+
+### 2. Install Dependencies
+
+**Both Linux & Windows**:
+```bash
 # Install backend dependencies
 cd backend
 npm install
@@ -80,23 +145,25 @@ npm install
 cd ..
 ```
 
-#### 4. User Account Setup
+### 3. User Account Setup
 
+**Both Linux & Windows**:
 ```bash
 # Create admin user (for experiment control)
 cd backend
 node scripts/createAdmin.js
 
 # Create participant users (for experiment participation)
-node scripts/createParticipant.js 5  # Creates 5 participants
+node scripts/createParticipant.js 5
 
 # Verify accounts created
 echo "Admin: username=md, password=12345678"
 echo "Participants: username=participant1-5, password=participant123"
 ```
 
-#### 5. Network Configuration
+### 4. Network Configuration
 
+**Linux**:
 ```bash
 # Find your IP address for network access
 ip addr show | grep "inet " | grep -v "127.0.0.1"
@@ -107,8 +174,22 @@ sudo ufw allow 3000  # Frontend
 sudo ufw allow 5000  # Backend
 ```
 
-#### 6. Start the Application
+**Windows**:
+```cmd
+# Find your IP address
+ipconfig | findstr "IPv4"
+# Note your IP address (e.g., 192.168.1.100)
 
+# Configure Windows Firewall (if needed)
+# Go to Windows Security > Firewall & network protection > Allow an app through firewall
+# Or run as Administrator:
+netsh advfirewall firewall add rule name="EEG System Frontend" dir=in action=allow protocol=TCP localport=3000
+netsh advfirewall firewall add rule name="EEG System Backend" dir=in action=allow protocol=TCP localport=5000
+```
+
+### 5. Start the Application
+
+**Linux**:
 ```bash
 # Start MongoDB (if not running)
 sudo systemctl start mongod
@@ -124,19 +205,44 @@ npm start
 # Should show: "webpack compiled with warnings" and start on port 3000
 ```
 
+**Windows**:
+```cmd
+# MongoDB should already be running as a service
+# If not, start it manually:
+net start MongoDB
+
+# Start backend server (from backend directory)
+cd backend
+npm start
+# Should show: "Server started on port 5000" and "WebSocket server ready"
+
+# In another Command Prompt window, start frontend:
+cd frontend
+npm start
+# Should show: "webpack compiled with warnings" and start on port 3000
+```
+
 ## Two-Device Operation Guide
 
 ### Network Access Setup
 
-1. **Find Your Admin Device IP**:
-   ```bash
-   hostname -I
-   # Example output: 192.168.1.100
-   ```
+**Linux**:
+```bash
+# Find your admin device IP
+hostname -I
+# Example output: 192.168.1.100
+```
 
-2. **Access URLs**:
-   - **Admin Device**: http://localhost:3000
-   - **Participant Devices**: http://[ADMIN-IP]:3000 (e.g., http://192.168.1.100:3000)
+**Windows**:
+```cmd
+# Find your admin device IP
+ipconfig | findstr "IPv4"
+# Look for: IPv4 Address. . . . . . . . . . . : 192.168.1.100
+```
+
+**Access URLs**:
+- **Admin Device**: http://localhost:3000
+- **Participant Devices**: http://[ADMIN-IP]:3000 (e.g., http://192.168.1.100:3000)
 
 ### Device Pairing Process
 
@@ -175,6 +281,8 @@ npm start
 #### Connection Issues
 
 **Problem**: Participant device can't access admin device
+
+**Linux**:
 ```bash
 # Check IP address is correct
 ip addr show
@@ -186,6 +294,22 @@ ping [ADMIN-IP]
 sudo ufw status
 sudo ufw allow 3000
 sudo ufw allow 5000
+```
+
+**Windows**:
+```cmd
+# Check IP address is correct
+ipconfig
+
+# Test network connectivity
+ping [ADMIN-IP]
+
+# Check Windows Firewall
+# Go to Windows Security > Firewall & network protection
+# Ensure "experiment" related apps are allowed
+
+# Or add firewall rules:
+netsh advfirewall firewall add rule name="Node.js" dir=in action=allow program="C:\Program Files\nodejs\node.exe"
 ```
 
 **Problem**: WebSocket connection fails
@@ -201,6 +325,8 @@ sudo ufw allow 5000
 #### Common Solutions
 
 1. **Restart Services**:
+
+   **Linux**:
    ```bash
    # Kill existing processes
    pkill -f "node server.js"
@@ -214,7 +340,24 @@ sudo ufw allow 5000
    cd frontend && npm start
    ```
 
+   **Windows**:
+   ```cmd
+   # Kill existing Node.js processes
+   taskkill /f /im node.exe
+   
+   # Restart MongoDB service
+   net stop MongoDB
+   net start MongoDB
+   
+   # Restart backend and frontend (in separate command prompts)
+   cd backend && npm start
+   # In another window:
+   cd frontend && npm start
+   ```
+
 2. **Reset Database** (if needed):
+
+   **Linux**:
    ```bash
    # Stop MongoDB
    sudo systemctl stop mongod
@@ -231,7 +374,27 @@ sudo ufw allow 5000
    node scripts/createParticipant.js 3
    ```
 
+   **Windows**:
+   ```cmd
+   # Stop MongoDB service
+   net stop MongoDB
+   
+   # Clear MongoDB data directory (default location)
+   rmdir /s "C:\Program Files\MongoDB\Server\7.0\data"
+   mkdir "C:\Program Files\MongoDB\Server\7.0\data"
+   
+   # Start MongoDB service
+   net start MongoDB
+   
+   # Recreate users
+   cd backend
+   node scripts/createAdmin.js
+   node scripts/createParticipant.js 3
+   ```
+
 3. **Check Logs**:
+
+   **Linux**:
    ```bash
    # Backend logs
    cd backend && npm start
@@ -241,6 +404,19 @@ sudo ufw allow 5000
    
    # MongoDB logs
    sudo journalctl -u mongod
+   ```
+
+   **Windows**:
+   ```cmd
+   # Backend logs (Command Prompt)
+   cd backend && npm start
+   
+   # Frontend logs (Another Command Prompt)
+   cd frontend && npm start
+   
+   # MongoDB logs (Event Viewer or MongoDB Compass)
+   # Go to Event Viewer > Windows Logs > Application
+   # Filter by source: MongoDB
    ```
 
 ## User Accounts
@@ -259,6 +435,7 @@ sudo ufw allow 5000
 
 ### Creating Additional Users
 
+**Both Linux & Windows**:
 ```bash
 # Create single participant
 cd backend
@@ -281,8 +458,7 @@ node scripts/createAdmin.js
 
 ## Production Deployment
 
-For production use with PM2:
-
+**Linux (with PM2)**:
 ```bash
 # Install PM2
 sudo npm install -g pm2
@@ -298,6 +474,33 @@ pm2 serve build 3000 --name "eeg-frontend"
 pm2 startup
 pm2 save
 ```
+
+**Windows (with PM2)**:
+```cmd
+# Install PM2 globally
+npm install -g pm2
+
+# Build frontend for production
+cd frontend
+npm run build
+cd ..
+
+# Start services
+cd backend
+pm2 start server.js --name "eeg-backend"
+
+cd ../frontend
+pm2 serve build 3000 --name "eeg-frontend"
+
+# Configure auto-start
+pm2 startup
+pm2 save
+```
+
+**Windows (as Windows Service)**:
+For automatic startup on Windows boot, consider using:
+- **NSSM** (Non-Sucking Service Manager): https://nssm.cc/
+- **node-windows**: npm package for creating Windows services
 
 ## System Architecture
 
