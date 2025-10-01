@@ -145,6 +145,16 @@ npm install
 cd ..
 ```
 
+**If you get React dependency conflicts on Windows:**
+```cmd
+# Try installing with legacy peer deps
+cd frontend
+npm install --legacy-peer-deps
+
+# Or force the installation
+npm install --force
+```
+
 ### 3. User Account Setup
 
 **Both Linux & Windows**:
@@ -321,6 +331,31 @@ netsh advfirewall firewall add rule name="Node.js" dir=in action=allow program="
 - Ensure both devices are on same WiFi network
 - Check that 6-digit code is entered correctly
 - Try refreshing both browser pages
+
+**Problem**: npm install fails with dependency conflicts (Windows)
+```cmd
+# Solution 1: Use legacy peer deps
+npm install --legacy-peer-deps
+
+# Solution 2: Force installation
+npm install --force
+
+# Solution 3: Clear npm cache and retry
+npm cache clean --force
+npm install --legacy-peer-deps
+```
+
+**Problem**: MongoDB connection fails (Windows)
+```cmd
+# Check if MongoDB service is running
+sc query MongoDB
+
+# Start MongoDB service if stopped
+net start MongoDB
+
+# Check MongoDB is listening on port 27017
+netstat -an | findstr :27017
+```
 
 #### Common Solutions
 
