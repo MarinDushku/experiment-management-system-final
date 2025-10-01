@@ -17,6 +17,7 @@
     },
     "devDependencies": {
         "@testing-library/react-hooks": "^8.0.1",
+        "cross-env": "^7.0.3",
         "cypress": "^13.3.0",
         "history": "^5.3.0",
         "jest-environment-jsdom": "^29.7.0",
@@ -31,7 +32,8 @@
         }
     },
     "scripts": {
-        "start": "HOST=0.0.0.0 react-scripts start",
+        "start": "cross-env HOST=0.0.0.0 react-scripts start",
+        "start:local": "react-scripts start",
         "build": "react-scripts build",
         "test": "react-scripts test",
         "test:watch": "react-scripts test --watchAll",
@@ -78,7 +80,11 @@
                 "statements": 10
             }
         },
-        "coverageReporters": ["text", "lcov", "html"],
+        "coverageReporters": [
+            "text",
+            "lcov",
+            "html"
+        ],
         "transformIgnorePatterns": [
             "node_modules/(?!(axios|msw)/)"
         ]

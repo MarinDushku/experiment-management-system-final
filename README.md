@@ -230,6 +230,10 @@ npm start
 cd frontend
 npm start
 # Should show: "webpack compiled with warnings" and start on port 3000
+# This will be accessible from other devices on your network
+
+# Alternative - start only for local access:
+npm run start:local
 ```
 
 ## Two-Device Operation Guide
@@ -355,6 +359,21 @@ net start MongoDB
 
 # Check MongoDB is listening on port 27017
 netstat -an | findstr :27017
+```
+
+**Problem**: "'HOST' is not recognized" error on Windows
+```cmd
+# This happens with older versions. Solution:
+cd frontend
+
+# Install missing dependency
+npm install --save-dev cross-env
+
+# Then start normally
+npm start
+
+# Or start only for local access (no network access)
+npm run start:local
 ```
 
 #### Common Solutions
