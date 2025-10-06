@@ -61,8 +61,19 @@ const io = new Server(server, {
   }
 });
 
-// Initialize Socket.IO handlers
-require('./sockets/socketHandlers')(io);
+// Create namespaces for different socket functionalities
+const mainNamespace = io.of('/');
+const experimentNamespace = io.of('/experiment');
+const deviceNamespace = io.of('/device');
+const eegNamespace = io.of('/eeg');
+
+// Initialize Socket.IO handlers with all namespaces
+require('./sockets/socketHandlers')({
+  main: mainNamespace,
+  experiment: experimentNamespace,
+  device: deviceNamespace,
+  eeg: eegNamespace
+});
 
 // When MongoDB is connected, rebuild indexes (temporary fix)
 const mongoose = require('mongoose');

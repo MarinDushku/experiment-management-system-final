@@ -2,11 +2,11 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 // Import specific socket handlers
-const deviceSocket = require('./deviceSocket');
-const experimentSocket = require('./experimentSocket');
-const eegSocket = require('./eegSocket');
+const { handleDeviceEvents } = require('./deviceSocket');
+const { handleExperimentEvents } = require('./experimentSocket');
+const { handleEEGEvents } = require('./eegSocket');
 
-// Store connected devices and their information
+// Shared state across all namespaces
 const connectedDevices = new Map();
 const devicePairs = new Map();
 
@@ -14,14 +14,14 @@ const devicePairs = new Map();
 const authenticateSocket = async (socket, next) => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       return next(new Error('Authentication error: No token provided'));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
-    
+    const user = await User.findById(decoded.user.id).select('-password');
+
     if (!user) {
       return next(new Error('Authentication error: User not found'));
     }
@@ -29,21 +29,28 @@ const authenticateSocket = async (socket, next) => {
     socket.userId = user._id.toString();
     socket.userRole = user.role;
     socket.user = user;
-    
+
     next();
   } catch (error) {
+    console.error('Socket authentication error:', error);
     next(new Error('Authentication error: Invalid token'));
   }
 };
 
 // Main socket handler initialization
-module.exports = (io) => {
-  // Apply authentication middleware
-  io.use(authenticateSocket);
+module.exports = (namespaces) => {
+  const { main, experiment, device, eeg } = namespaces;
 
-  io.on('connection', (socket) => {
-    console.log(`User ${socket.user.username} connected with socket ID: ${socket.id}`);
-    
+  // Apply authentication middleware to all namespaces
+  main.use(authenticateSocket);
+  experiment.use(authenticateSocket);
+  device.use(authenticateSocket);
+  eeg.use(authenticateSocket);
+
+  // Main namespace - general connection handling
+  main.on('connection', (socket) => {
+    console.log(`User ${socket.user.username} connected to main namespace with socket ID: ${socket.id}`);
+
     // Store device information
     const deviceInfo = {
       socketId: socket.id,
@@ -54,12 +61,12 @@ module.exports = (io) => {
       deviceType: socket.handshake.headers['user-agent'] || 'unknown',
       ip: socket.handshake.address
     };
-    
+
     connectedDevices.set(socket.id, deviceInfo);
-    
+
     // Join user to their own room for targeted messaging
     socket.join(`user:${socket.userId}`);
-    
+
     // Emit connection success
     socket.emit('connection-established', {
       message: 'Connected successfully',
@@ -71,26 +78,21 @@ module.exports = (io) => {
     // Broadcast to all other users that a device connected
     socket.broadcast.emit('device-connected', deviceInfo);
 
-    // Initialize handlers for different socket event categories
-    deviceSocket(io, socket, connectedDevices, devicePairs);
-    experimentSocket(io, socket, connectedDevices, devicePairs);
-    eegSocket(io, socket, connectedDevices, devicePairs);
-
     // Handle disconnection
     socket.on('disconnect', (reason) => {
-      console.log(`User ${socket.user.username} disconnected: ${reason}`);
-      
+      console.log(`User ${socket.user.username} disconnected from main: ${reason}`);
+
       // Remove from connected devices
       const deviceInfo = connectedDevices.get(socket.id);
       connectedDevices.delete(socket.id);
-      
+
       // Remove any device pairs involving this socket
       for (const [pairId, pair] of devicePairs.entries()) {
         if (pair.adminSocketId === socket.id || pair.participantSocketId === socket.id) {
           // Notify the other device in the pair
           const otherSocketId = pair.adminSocketId === socket.id ? pair.participantSocketId : pair.adminSocketId;
           if (otherSocketId && connectedDevices.has(otherSocketId)) {
-            io.to(otherSocketId).emit('device-pair-disconnected', {
+            main.to(otherSocketId).emit('device-pair-disconnected', {
               pairId,
               disconnectedDevice: deviceInfo,
               reason: 'Device disconnected'
@@ -99,7 +101,7 @@ module.exports = (io) => {
           devicePairs.delete(pairId);
         }
       }
-      
+
       // Broadcast disconnection to other users
       socket.broadcast.emit('device-disconnected', {
         socketId: socket.id,
@@ -114,20 +116,32 @@ module.exports = (io) => {
     });
   });
 
+  // Initialize namespace-specific handlers with shared state
+  handleDeviceEvents(device, connectedDevices, devicePairs);
+  handleExperimentEvents(experiment, connectedDevices, devicePairs);
+  handleEEGEvents(eeg, connectedDevices, devicePairs);
+
   // Periodic cleanup of stale connections
   setInterval(() => {
     const now = new Date();
     const staleThreshold = 5 * 60 * 1000; // 5 minutes
-    
+
     for (const [socketId, deviceInfo] of connectedDevices.entries()) {
       if (now - deviceInfo.connectedAt > staleThreshold) {
-        // Check if socket is still connected
-        const socket = io.sockets.sockets.get(socketId);
-        if (!socket || !socket.connected) {
+        // Check if socket is still connected in any namespace
+        const mainSocket = main.sockets.get(socketId);
+        const experimentSocket = experiment.sockets.get(socketId);
+        const deviceSocket = device.sockets.get(socketId);
+        const eegSocket = eeg.sockets.get(socketId);
+
+        if (!mainSocket?.connected && !experimentSocket?.connected &&
+            !deviceSocket?.connected && !eegSocket?.connected) {
           connectedDevices.delete(socketId);
           console.log(`Cleaned up stale device connection: ${socketId}`);
         }
       }
     }
   }, 60000); // Run every minute
+
+  console.log('Socket.IO namespaces initialized: /, /experiment, /device, /eeg');
 };

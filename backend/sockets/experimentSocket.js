@@ -1,39 +1,10 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-
-// WebSocket authentication middleware
-const authenticateSocket = async (socket, next) => {
-  try {
-    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      return next(new Error('Authentication error: No token provided'));
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.user.id).select('-password');
-    
-    if (!user) {
-      return next(new Error('Authentication error: Invalid token'));
-    }
-
-    socket.user = user;
-    next();
-  } catch (err) {
-    console.error('Socket authentication error:', err);
-    next(new Error('Authentication error'));
-  }
-};
-
 // Experiment WebSocket event handlers
-const handleExperimentEvents = (io) => {
-  io.use(authenticateSocket);
-
+const handleExperimentEvents = (io, connectedDevices, devicePairs) => {
   io.on('connection', (socket) => {
-    console.log(`User ${socket.user.name} connected to experiment socket:`, socket.id);
+    console.log(`Experiment socket connected: ${socket.user.username} (${socket.id})`);
 
     // Join user to their own room for notifications
-    socket.join(`user_${socket.user.id}`);
+    socket.join(`user_${socket.user._id}`);
 
     // Device pairing events
     socket.on('device-pair-request', (data) => {
@@ -49,13 +20,13 @@ const handleExperimentEvents = (io) => {
     socket.on('device-pair-response', (data) => {
       console.log('Device pair response:', data);
       // Send response to specific device
-      socket.to(data.targetSocketId).emit('device-pair-response', data);
+      io.to(data.targetSocketId).emit('device-pair-response', data);
     });
 
     socket.on('device-connected', (data) => {
-      console.log('Device connected:', data);
+      console.log('Device connected to experiment:', data);
       socket.join(`experiment_${data.experimentId}`);
-      
+
       // Notify other devices in the same experiment
       socket.to(`experiment_${data.experimentId}`).emit('device-connected', {
         socketId: socket.id,
@@ -68,7 +39,7 @@ const handleExperimentEvents = (io) => {
     socket.on('experiment-start', (data) => {
       console.log('Experiment start:', data);
       socket.join(`experiment_${data.experimentId}`);
-      
+
       // Broadcast to participant devices in this experiment
       socket.to(`experiment_${data.experimentId}`).emit('experiment-start', {
         experimentId: data.experimentId,
@@ -79,7 +50,7 @@ const handleExperimentEvents = (io) => {
 
     socket.on('experiment-stop', (data) => {
       console.log('Experiment stop:', data);
-      
+
       // Broadcast to all devices in this experiment
       socket.to(`experiment_${data.experimentId}`).emit('experiment-stop', {
         experimentId: data.experimentId,
@@ -89,7 +60,7 @@ const handleExperimentEvents = (io) => {
 
     socket.on('experiment-pause', (data) => {
       console.log('Experiment pause:', data);
-      
+
       socket.to(`experiment_${data.experimentId}`).emit('experiment-pause', {
         experimentId: data.experimentId,
         timestamp: Date.now()
@@ -98,7 +69,7 @@ const handleExperimentEvents = (io) => {
 
     socket.on('step-change', (data) => {
       console.log('Step change:', data);
-      
+
       // Broadcast step change to participant devices
       socket.to(`experiment_${data.experimentId}`).emit('step-change', {
         experimentId: data.experimentId,
@@ -111,13 +82,13 @@ const handleExperimentEvents = (io) => {
 
     socket.on('step-complete', (data) => {
       console.log('Step complete from participant:', data);
-      
+
       // Notify admin devices
       socket.to('admin_devices').emit('step-complete', {
         experimentId: data.experimentId,
         stepIndex: data.stepIndex,
         trialIndex: data.trialIndex,
-        participantId: socket.user.id,
+        participantId: socket.user._id,
         timestamp: Date.now()
       });
     });
@@ -125,7 +96,7 @@ const handleExperimentEvents = (io) => {
     // EEG data streaming events
     socket.on('eeg-recording-start', (data) => {
       console.log('EEG recording start:', data);
-      
+
       socket.to(`experiment_${data.experimentId}`).emit('eeg-recording-start', {
         experimentId: data.experimentId,
         timestamp: Date.now()
@@ -134,7 +105,7 @@ const handleExperimentEvents = (io) => {
 
     socket.on('eeg-recording-stop', (data) => {
       console.log('EEG recording stop:', data);
-      
+
       socket.to(`experiment_${data.experimentId}`).emit('eeg-recording-stop', {
         experimentId: data.experimentId,
         timestamp: Date.now()
@@ -160,7 +131,7 @@ const handleExperimentEvents = (io) => {
     // Role-based room joining
     socket.on('join-as-admin', () => {
       socket.join('admin_devices');
-      console.log(`User ${socket.user.name} joined as admin`);
+      console.log(`User ${socket.user.username} joined as admin`);
     });
 
     socket.on('join-as-participant', (data) => {
@@ -168,13 +139,13 @@ const handleExperimentEvents = (io) => {
       if (data.experimentId) {
         socket.join(`experiment_${data.experimentId}`);
       }
-      console.log(`User ${socket.user.name} joined as participant`);
+      console.log(`User ${socket.user.username} joined as participant for experiment ${data.experimentId}`);
     });
 
     socket.on('disconnect', () => {
-      console.log(`User ${socket.user.name} disconnected:`, socket.id);
+      console.log(`Experiment socket disconnected: ${socket.user.username} (${socket.id})`);
     });
   });
 };
 
-module.exports = { handleExperimentEvents, authenticateSocket };
+module.exports = { handleExperimentEvents };
