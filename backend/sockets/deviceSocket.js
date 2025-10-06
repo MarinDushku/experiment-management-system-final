@@ -4,20 +4,61 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
     console.log(`Device socket connected: ${socket.user.username} (${socket.id})`);
 
     // Device discovery and status
-    socket.on('device-scan', () => {
-      console.log('Device scan requested by:', socket.user.username);
+    socket.on('device-scan', (filters = {}) => {
+      console.log('Device scan requested by:', socket.user.username, 'with filters:', filters);
 
-      // Return list of available devices (excluding the requester)
+      const now = Date.now();
+      const connectionTimeLimit = filters.recentOnly !== false ? 10 * 60 * 1000 : Infinity; // 10 minutes default
+
+      // Return list of available devices with smart filtering
       const availableDevices = Array.from(connectedDevices.values())
-        .filter(device => device.socketId !== socket.id)
+        .filter(device => {
+          // 1. Don't show yourself
+          if (device.socketId === socket.id) return false;
+
+          // 2. Role-based filtering: Admins see only participants, participants see only admins
+          if (socket.userRole === 'admin') {
+            // Admin should only see participants (users)
+            if (device.userRole !== 'user') return false;
+          } else if (socket.userRole === 'user') {
+            // Participants should only see admins
+            if (device.userRole !== 'admin') return false;
+          }
+
+          // 3. Recent connection filter: Only show devices connected in last 10 minutes
+          const timeSinceConnection = now - new Date(device.connectedAt).getTime();
+          if (timeSinceConnection > connectionTimeLimit) {
+            console.log(`Filtering out ${device.username} - connected ${Math.floor(timeSinceConnection / 60000)} minutes ago`);
+            return false;
+          }
+
+          // 4. Experiment assignment filter (if provided)
+          if (filters.experimentId && device.currentExperimentId !== filters.experimentId) {
+            return false;
+          }
+
+          // 5. Don't show already paired devices (optional)
+          if (filters.excludePaired && device.status === 'paired') {
+            return false;
+          }
+
+          return true;
+        })
         .map(device => ({
           socketId: device.socketId,
           userName: device.username,
           userRole: device.userRole,
           status: device.status || 'connected',
-          connectedAt: device.connectedAt
-        }));
+          connectedAt: device.connectedAt,
+          currentExperimentId: device.currentExperimentId,
+          connectionAge: Math.floor((now - new Date(device.connectedAt).getTime()) / 1000) // seconds
+        }))
+        .sort((a, b) => {
+          // Sort by most recently connected first
+          return new Date(b.connectedAt).getTime() - new Date(a.connectedAt).getTime();
+        });
 
+      console.log(`Found ${availableDevices.length} matching devices for ${socket.user.username}`);
       socket.emit('device-scan-results', availableDevices);
     });
 
@@ -118,6 +159,37 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
         io.to(targetSocketId).emit('unpaired', {
           fromSocketId: socket.id,
           fromUserName: socket.user.username,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Experiment assignment
+    socket.on('join-experiment', (data) => {
+      const { experimentId } = data;
+      const device = connectedDevices.get(socket.id);
+
+      if (device) {
+        device.currentExperimentId = experimentId;
+        console.log(`${socket.user.username} joined experiment ${experimentId}`);
+
+        socket.emit('experiment-joined', {
+          experimentId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    socket.on('leave-experiment', () => {
+      const device = connectedDevices.get(socket.id);
+
+      if (device) {
+        const previousExperimentId = device.currentExperimentId;
+        delete device.currentExperimentId;
+        console.log(`${socket.user.username} left experiment ${previousExperimentId}`);
+
+        socket.emit('experiment-left', {
+          experimentId: previousExperimentId,
           timestamp: Date.now()
         });
       }
