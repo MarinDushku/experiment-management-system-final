@@ -594,3 +594,21 @@ For technical support or questions:
 ---
 
 **Ready to conduct professional EEG research with secure multi-device connectivity!** 🧠⚡📱
+
+
+
+
+**# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# MongoDB Connection
+MONGO_URI=mongodb://127.0.0.1:27017/experiment-management
+
+# JWT Configuration
+JWT_SECRET=eeg_experiment_secret_key_2024_secure_development_mode
+JWT_EXPIRE=24h
+
+# Admin User (for initial setup)
+ADMIN_USERNAME=md
+ADMIN_PASSWORD=12345678
