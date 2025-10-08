@@ -31,8 +31,12 @@ export const DeviceProvider = ({ children }) => {
 
   useEffect(() => {
     if (!isNamespaceConnected('device')) {
+      setDeviceStatus('disconnected');
       return;
     }
+
+    // Set device status to connected when namespace connects
+    setDeviceStatus('connected');
 
     // Set up device event listeners
     const cleanup = [
@@ -56,6 +60,7 @@ export const DeviceProvider = ({ children }) => {
 
   const handleDeviceScanResults = useCallback((devices) => {
     console.log('Device scan results:', devices);
+    console.log(`Found ${devices.length} devices:`, devices.map(d => `${d.userName} (${d.userRole})`));
     setAvailableDevices(devices);
     setIsScanning(false);
   }, []);
