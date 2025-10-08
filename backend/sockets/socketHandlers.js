@@ -21,7 +21,8 @@ const authenticateSocket = async (socket, next) => {
     }
 
     console.log('Attempting to verify socket token...');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'eeg_experiment_secret_key_2024_secure_development_mode';
+    const decoded = jwt.verify(token, jwtSecret);
     const userId = decoded.id || decoded.user?.id; // Support both token formats
     console.log('Token decoded successfully for user ID:', userId);
 

@@ -17,7 +17,8 @@ exports.protect = async (req, res, next) => {
     }
     
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+    const jwtSecret = process.env.JWT_SECRET || 'eeg_experiment_secret_key_2024_secure_development_mode';
+    const decoded = jwt.verify(token, jwtSecret);
     
     // Add user to request
     req.user = {

@@ -81,10 +81,11 @@ exports.login = async (req, res) => {
     }
 
     // Generate JWT
+    const jwtSecret = process.env.JWT_SECRET || 'eeg_experiment_secret_key_2024_secure_development_mode';
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'your_jwt_secret_key',
-      { expiresIn: '24h' }
+      jwtSecret,
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
     res.json({
