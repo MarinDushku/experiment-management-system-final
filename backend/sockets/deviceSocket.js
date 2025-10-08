@@ -89,22 +89,35 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
     });
 
     socket.on('pair-response', (data) => {
-      const { targetSocketId, accepted, pairingCode } = data;
+      const { targetSocketId, accepted, pairingCode, enteredCode } = data;
 
       console.log(`Pair response from ${socket.user.username}: ${accepted ? 'accepted' : 'rejected'}`);
 
-      // Send response back to original requester
-      io.to(targetSocketId).emit('pair-response', {
-        fromSocketId: socket.id,
-        fromUserName: socket.user.username,
-        fromUserRole: socket.userRole,
-        accepted: accepted,
-        pairingCode: pairingCode,
-        timestamp: Date.now()
-      });
-
       if (accepted) {
-        // Update device status to paired
+        // Verify the pairing code matches
+        if (!enteredCode || enteredCode !== pairingCode) {
+          console.log(`Pairing failed: Code mismatch. Expected: ${pairingCode}, Got: ${enteredCode}`);
+
+          // Send error back to responder
+          socket.emit('pair-response-error', {
+            error: 'Invalid pairing code',
+            message: 'The pairing code you entered does not match. Please try again.'
+          });
+
+          // Notify requester about failed verification
+          io.to(targetSocketId).emit('pair-response', {
+            fromSocketId: socket.id,
+            fromUserName: socket.user.username,
+            fromUserRole: socket.userRole,
+            accepted: false,
+            error: 'Code verification failed',
+            timestamp: Date.now()
+          });
+
+          return;
+        }
+
+        // Code verified successfully, proceed with pairing
         const currentDevice = connectedDevices.get(socket.id);
         const targetDevice = connectedDevices.get(targetSocketId);
 
@@ -127,8 +140,27 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
           socket.join(pairId);
           io.to(targetSocketId).emit('join-pair-room', pairId);
 
-          console.log(`Devices paired successfully: ${pairId}`);
+          console.log(`Devices paired successfully with verified code: ${pairId}`);
+
+          // Send success response
+          io.to(targetSocketId).emit('pair-response', {
+            fromSocketId: socket.id,
+            fromUserName: socket.user.username,
+            fromUserRole: socket.userRole,
+            accepted: true,
+            pairingCode: pairingCode,
+            timestamp: Date.now()
+          });
         }
+      } else {
+        // Pairing rejected
+        io.to(targetSocketId).emit('pair-response', {
+          fromSocketId: socket.id,
+          fromUserName: socket.user.username,
+          fromUserRole: socket.userRole,
+          accepted: false,
+          timestamp: Date.now()
+        });
       }
     });
 

@@ -7,6 +7,7 @@ const AuthContext = createContext();
 // Initial state
 const initialState = {
   user: null,
+  token: null,
   isAuthenticated: false,
   loading: true,
   error: null
@@ -20,7 +21,8 @@ const authReducer = (state, action) => {
         ...state,
         isAuthenticated: true,
         loading: false,
-        user: action.payload
+        user: action.payload.user,
+        token: action.payload.token
       };
     case 'LOGIN_SUCCESS':
       localStorage.setItem('token', action.payload.token);
@@ -65,17 +67,17 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-      
+
       if (token && storedUser) {
         try {
           const user = JSON.parse(storedUser);
-          
+
           // Set axios default headers
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          
+
           dispatch({
             type: 'USER_LOADED',
-            payload: user
+            payload: { user, token }
           });
         } catch (err) {
           console.error('Error parsing user from localStorage', err);
@@ -91,7 +93,7 @@ export const AuthProvider = ({ children }) => {
         });
       }
     };
-    
+
     loadUser();
   }, []);
 
@@ -136,6 +138,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user: state.user,
+        token: state.token,
         isAuthenticated: state.isAuthenticated,
         loading: state.loading,
         error: state.error,

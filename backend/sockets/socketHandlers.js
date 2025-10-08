@@ -16,13 +16,19 @@ const authenticateSocket = async (socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
 
     if (!token) {
+      console.error('Socket auth failed: No token provided');
       return next(new Error('Authentication error: No token provided'));
     }
 
+    console.log('Attempting to verify socket token...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.user.id).select('-password');
+    const userId = decoded.id || decoded.user?.id; // Support both token formats
+    console.log('Token decoded successfully for user ID:', userId);
+
+    const user = await User.findById(userId).select('-password');
 
     if (!user) {
+      console.error('Socket auth failed: User not found for ID:', userId);
       return next(new Error('Authentication error: User not found'));
     }
 
@@ -30,9 +36,16 @@ const authenticateSocket = async (socket, next) => {
     socket.userRole = user.role;
     socket.user = user;
 
+    console.log(`Socket authenticated for user: ${user.username}`);
     next();
   } catch (error) {
-    console.error('Socket authentication error:', error);
+    console.error('Socket authentication error:', error.message);
+    if (error.name === 'TokenExpiredError') {
+      return next(new Error('Authentication error: Token expired'));
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return next(new Error('Authentication error: Invalid token format'));
+    }
     next(new Error('Authentication error: Invalid token'));
   }
 };

@@ -27,6 +27,7 @@ export const DeviceProvider = ({ children }) => {
   const [pairingCode, setPairingCode] = useState(null);
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [pairingStep, setPairingStep] = useState('idle'); // idle, generating, waiting, confirming, paired
+  const [pairingError, setPairingError] = useState(null);
 
   useEffect(() => {
     if (!isNamespaceConnected('device')) {
@@ -39,6 +40,7 @@ export const DeviceProvider = ({ children }) => {
       on('device', 'device-list-updated', handleDeviceListUpdated),
       on('device', 'pair-request', handlePairRequest),
       on('device', 'pair-response', handlePairResponse),
+      on('device', 'pair-response-error', handlePairResponseError),
       on('device', 'unpaired', handleUnpaired),
       on('device', 'pair-disconnected', handlePairDisconnected),
       on('device', 'device-status', handleDeviceStatus)
@@ -76,7 +78,7 @@ export const DeviceProvider = ({ children }) => {
 
   const handlePairResponse = useCallback((response) => {
     console.log('Received pair response:', response);
-    
+
     if (response.accepted) {
       setPairedDevice({
         socketId: response.fromSocketId,
@@ -86,13 +88,30 @@ export const DeviceProvider = ({ children }) => {
       });
       setPairingStep('paired');
       setDeviceStatus('paired');
+      setPairingError(null);
+
+      // Auto-close modal after 2 seconds
+      setTimeout(() => {
+        setShowPairingModal(false);
+        setPairingCode(null);
+      }, 2000);
     } else {
       setPairingStep('idle');
       setDeviceStatus('connected');
+      setPairingError(response.error || 'Pairing request was rejected');
+
+      // Close modal after showing error
+      setTimeout(() => {
+        setShowPairingModal(false);
+        setPairingCode(null);
+        setPairingError(null);
+      }, 3000);
     }
-    
-    setShowPairingModal(false);
-    setPairingCode(null);
+  }, []);
+
+  const handlePairResponseError = useCallback((error) => {
+    console.error('Pair response error:', error);
+    setPairingError(error.message || 'An error occurred during pairing');
   }, []);
 
   const handleUnpaired = useCallback((data) => {
@@ -153,7 +172,7 @@ export const DeviceProvider = ({ children }) => {
     console.log(`Sent pairing request to ${targetDevice.userName} with code ${code}`);
   }, [emit, isNamespaceConnected]);
 
-  const respondToPairingRequest = useCallback((request, accepted) => {
+  const respondToPairingRequest = useCallback((request, accepted, enteredCode = null) => {
     if (!isNamespaceConnected('device')) {
       console.warn('Device namespace not connected');
       return;
@@ -162,11 +181,12 @@ export const DeviceProvider = ({ children }) => {
     emit('device', 'pair-response', {
       targetSocketId: request.fromSocketId,
       accepted: accepted,
-      pairingCode: request.pairingCode
+      pairingCode: request.pairingCode,
+      enteredCode: enteredCode
     });
 
     // Update pairing requests
-    setPairingRequests(prev => 
+    setPairingRequests(prev =>
       prev.filter(req => req.fromSocketId !== request.fromSocketId)
     );
 
@@ -251,28 +271,29 @@ export const DeviceProvider = ({ children }) => {
     pairingRequests,
     deviceStatus,
     isScanning,
-    
+
     // Pairing state
     pairingCode,
     showPairingModal,
     pairingStep,
-    
+    pairingError,
+
     // Device discovery
     scanForDevices,
-    
+
     // Device pairing
     requestPairing,
     respondToPairingRequest,
     unpairDevice,
     generatePairingCode,
-    
+
     // Modal management
     closePairingModal,
     dismissPairingRequest,
-    
+
     // Utilities
     checkConnectionQuality,
-    
+
     // Helper methods
     isPaired: !!pairedDevice,
     canPair: deviceStatus === 'connected' && !pairedDevice,

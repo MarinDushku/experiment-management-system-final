@@ -6,11 +6,12 @@ import './DeviceConnection.css';
 
 const DeviceConnection = () => {
   const { user } = useAuth();
-  const { 
-    connectionStatus, 
-    isConnected, 
+  const {
+    connectionStatus,
+    isConnected,
     isNamespaceConnected,
-    reconnect 
+    reconnect,
+    disconnect
   } = useWebSocket();
   
   const {
@@ -22,6 +23,7 @@ const DeviceConnection = () => {
     pairingCode,
     showPairingModal,
     pairingStep,
+    pairingError,
     scanForDevices,
     requestPairing,
     respondToPairingRequest,
@@ -35,6 +37,9 @@ const DeviceConnection = () => {
 
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [showDeviceList, setShowDeviceList] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [showCodeInputModal, setShowCodeInputModal] = useState(false);
+  const [currentPairingRequest, setCurrentPairingRequest] = useState(null);
 
   const getConnectionStatusColor = () => {
     switch (connectionStatus) {
@@ -67,8 +72,39 @@ const DeviceConnection = () => {
     requestPairing(device);
   };
 
-  const handleRespondToPairing = (request, accepted) => {
-    respondToPairingRequest(request, accepted);
+  const handleAcceptPairing = (request) => {
+    setCurrentPairingRequest(request);
+    setShowCodeInputModal(true);
+    setCodeInput('');
+  };
+
+  const handleRejectPairing = (request) => {
+    respondToPairingRequest(request, false);
+  };
+
+  const handleSubmitCode = () => {
+    if (!codeInput || codeInput.replace('-', '').length !== 6) {
+      alert('Please enter a valid 6-digit code');
+      return;
+    }
+
+    const cleanCode = codeInput.replace('-', '');
+    respondToPairingRequest(currentPairingRequest, true, cleanCode);
+    setShowCodeInputModal(false);
+    setCodeInput('');
+    setCurrentPairingRequest(null);
+  };
+
+  const handleCodeInputChange = (e) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+    if (value.length > 6) value = value.slice(0, 6);
+
+    // Format as XXX-XXX
+    if (value.length > 3) {
+      value = value.slice(0, 3) + '-' + value.slice(3);
+    }
+
+    setCodeInput(value);
   };
 
   const formatPairingCode = (code) => {
@@ -124,13 +160,17 @@ const DeviceConnection = () => {
       </div>
 
       {/* Connection Actions */}
-      {!isConnected && (
-        <div className="connection-actions">
+      <div className="connection-actions">
+        {!isConnected ? (
           <button onClick={reconnect} className="btn-primary">
             Reconnect
           </button>
-        </div>
-      )}
+        ) : (
+          <button onClick={disconnect} className="btn-danger">
+            Disconnect
+          </button>
+        )}
+      </div>
 
       {/* Device Management */}
       {isConnected && (
@@ -221,27 +261,24 @@ const DeviceConnection = () => {
                   <div className="request-info">
                     <span className="requester-name">{request.fromUserName}</span>
                     <span className="requester-role">({request.fromUserRole})</span>
-                    <span className="pairing-code">
-                      Code: {formatPairingCode(request.pairingCode)}
-                    </span>
                     <span className="request-time">
                       {new Date(request.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
                   <div className="request-actions">
-                    <button 
-                      onClick={() => handleRespondToPairing(request, true)}
+                    <button
+                      onClick={() => handleAcceptPairing(request)}
                       className="btn-success"
                     >
                       Accept
                     </button>
-                    <button 
-                      onClick={() => handleRespondToPairing(request, false)}
+                    <button
+                      onClick={() => handleRejectPairing(request)}
                       className="btn-danger"
                     >
                       Reject
                     </button>
-                    <button 
+                    <button
                       onClick={() => dismissPairingRequest(request.fromSocketId)}
                       className="btn-secondary"
                     >
@@ -255,13 +292,13 @@ const DeviceConnection = () => {
         </div>
       )}
 
-      {/* Pairing Modal */}
+      {/* Pairing Modal - Requester Side */}
       {showPairingModal && (
         <div className="modal-overlay">
           <div className="modal-content pairing-modal">
             <div className="modal-header">
               <h3>Device Pairing</h3>
-              <button 
+              <button
                 onClick={closePairingModal}
                 className="close-button"
               >
@@ -280,9 +317,12 @@ const DeviceConnection = () => {
                   <p>
                     Share this code with <strong>{selectedDevice?.userName}</strong> to pair devices.
                   </p>
+                  <p className="code-instructions">
+                    The other device needs to enter this code to complete pairing.
+                  </p>
                   <div className="waiting-indicator">
                     <div className="spinner"></div>
-                    <span>Waiting for response...</span>
+                    <span>Waiting for code verification...</span>
                   </div>
                 </div>
               )}
@@ -293,6 +333,82 @@ const DeviceConnection = () => {
                   <p>Successfully paired with <strong>{selectedDevice?.userName}</strong>!</p>
                 </div>
               )}
+
+              {pairingError && (
+                <div className="pairing-error">
+                  <div className="error-icon">✗</div>
+                  <p className="error-message">{pairingError}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Code Input Modal - Responder Side */}
+      {showCodeInputModal && (
+        <div className="modal-overlay">
+          <div className="modal-content code-input-modal">
+            <div className="modal-header">
+              <h3>Enter Pairing Code</h3>
+              <button
+                onClick={() => {
+                  setShowCodeInputModal(false);
+                  setCodeInput('');
+                  setCurrentPairingRequest(null);
+                }}
+                className="close-button"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                <strong>{currentPairingRequest?.fromUserName}</strong> wants to pair with this device.
+              </p>
+              <p className="code-instruction">
+                Enter the 6-digit code shown on their device:
+              </p>
+              <div className="code-input-container">
+                <input
+                  type="text"
+                  className="code-input-field"
+                  placeholder="XXX-XXX"
+                  value={codeInput}
+                  onChange={handleCodeInputChange}
+                  maxLength={7}
+                  autoFocus
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSubmitCode();
+                    }
+                  }}
+                />
+              </div>
+              {pairingError && (
+                <div className="error-message-inline">
+                  {pairingError}
+                </div>
+              )}
+              <div className="modal-actions">
+                <button
+                  onClick={handleSubmitCode}
+                  className="btn-primary"
+                  disabled={codeInput.replace('-', '').length !== 6}
+                >
+                  Verify & Pair
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCodeInputModal(false);
+                    setCodeInput('');
+                    setCurrentPairingRequest(null);
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

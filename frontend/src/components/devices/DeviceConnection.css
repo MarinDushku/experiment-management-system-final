@@ -7,6 +7,85 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Code Input Modal Styles */
+.code-input-modal .modal-body {
+  text-align: center;
+}
+
+.code-instruction {
+  font-size: 14px;
+  color: #666;
+  margin: 15px 0;
+}
+
+.code-instructions {
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+.code-input-container {
+  margin: 25px 0;
+}
+
+.code-input-field {
+  width: 200px;
+  height: 60px;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 8px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: 'Courier New', monospace;
+  transition: border-color 0.3s ease;
+}
+
+.code-input-field:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.code-input-field::placeholder {
+  color: #ccc;
+  letter-spacing: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.error-message-inline {
+  color: #F44336;
+  font-size: 14px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #ffebee;
+  border-radius: 4px;
+}
+
+.pairing-error {
+  text-align: center;
+  padding: 20px;
+}
+
+.error-icon {
+  font-size: 48px;
+  color: #F44336;
+  margin-bottom: 10px;
+}
+
+.error-message {
+  color: #F44336;
+  font-size: 16px;
+}
+
 .connection-header {
   display: flex;
   justify-content: space-between;
