@@ -30,12 +30,16 @@ export const DeviceProvider = ({ children }) => {
   const [pairingError, setPairingError] = useState(null);
 
   useEffect(() => {
+    console.log('Device namespace connected:', isNamespaceConnected('device'));
+
     if (!isNamespaceConnected('device')) {
+      console.log('Device namespace NOT connected, setting status to disconnected');
       setDeviceStatus('disconnected');
       return;
     }
 
     // Set device status to connected when namespace connects
+    console.log('Device namespace IS connected, setting status to connected');
     setDeviceStatus('connected');
 
     // Set up device event listeners
