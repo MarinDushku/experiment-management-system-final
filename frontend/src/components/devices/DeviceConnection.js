@@ -143,13 +143,13 @@ const DeviceConnection = () => {
       <div className="connection-details">
         <div className="detail-item">
           <span className="label">User:</span>
-          <span className="value">{user?.name} ({user?.role})</span>
+          <span className="value">{user?.username} ({user?.role})</span>
         </div>
         <div className="detail-item">
           <span className="label">Device Status:</span>
-          <span 
+          <span
             className="value"
-            style={{ color: getDeviceStatusColor() }}
+            style={{ color: getDeviceStatusColor(), fontWeight: 'bold' }}
           >
             {deviceStatus}
           </span>

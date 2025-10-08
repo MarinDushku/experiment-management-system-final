@@ -14,33 +14,60 @@ export const useDevice = () => {
 
 export const DeviceProvider = ({ children }) => {
   const { user } = useAuth();
-  const { emit, on, off, isNamespaceConnected } = useWebSocket();
-  
+  const { emit, on, off, deviceSocket, isNamespaceConnected } = useWebSocket();
+
   // Device state
   const [availableDevices, setAvailableDevices] = useState([]);
   const [pairedDevice, setPairedDevice] = useState(null);
   const [pairingRequests, setPairingRequests] = useState([]);
-  const [deviceStatus, setDeviceStatus] = useState('disconnected');
   const [isScanning, setIsScanning] = useState(false);
-  
+  const [forceUpdate, setForceUpdate] = useState(0);
+
   // Pairing state
   const [pairingCode, setPairingCode] = useState(null);
   const [showPairingModal, setShowPairingModal] = useState(false);
   const [pairingStep, setPairingStep] = useState('idle'); // idle, generating, waiting, confirming, paired
   const [pairingError, setPairingError] = useState(null);
 
+  // Monitor socket connection changes
   useEffect(() => {
-    console.log('Device namespace connected:', isNamespaceConnected('device'));
+    if (!deviceSocket) return;
 
-    if (!isNamespaceConnected('device')) {
-      console.log('Device namespace NOT connected, setting status to disconnected');
-      setDeviceStatus('disconnected');
+    const handleConnect = () => {
+      console.log('Device socket connected event');
+      setForceUpdate(prev => prev + 1);
+    };
+
+    const handleDisconnect = () => {
+      console.log('Device socket disconnected event');
+      setForceUpdate(prev => prev + 1);
+    };
+
+    deviceSocket.on('connect', handleConnect);
+    deviceSocket.on('disconnect', handleDisconnect);
+
+    return () => {
+      deviceSocket.off('connect', handleConnect);
+      deviceSocket.off('disconnect', handleDisconnect);
+    };
+  }, [deviceSocket]);
+
+  // Derive device status directly from socket connection state
+  const deviceStatus = React.useMemo(() => {
+    if (!deviceSocket) return 'disconnected';
+    if (!deviceSocket.connected) return 'disconnected';
+    if (pairedDevice) return 'paired';
+    return 'connected';
+  }, [deviceSocket, deviceSocket?.connected, pairedDevice, forceUpdate]);
+
+  // Set up event listeners when device socket connects
+  useEffect(() => {
+    if (!deviceSocket?.connected) {
+      console.log('Device socket not connected');
       return;
     }
 
-    // Set device status to connected when namespace connects
-    console.log('Device namespace IS connected, setting status to connected');
-    setDeviceStatus('connected');
+    console.log('Device socket connected, setting up event listeners');
 
     // Set up device event listeners
     const cleanup = [
@@ -60,7 +87,7 @@ export const DeviceProvider = ({ children }) => {
     return () => {
       cleanup.forEach(cleanupFn => cleanupFn());
     };
-  }, [isNamespaceConnected('device'), on, off, emit]);
+  }, [deviceSocket?.connected, on, off, emit]);
 
   const handleDeviceScanResults = useCallback((devices) => {
     console.log('Device scan results:', devices);
@@ -96,7 +123,6 @@ export const DeviceProvider = ({ children }) => {
         pairedAt: Date.now()
       });
       setPairingStep('paired');
-      setDeviceStatus('paired');
       setPairingError(null);
 
       // Auto-close modal after 2 seconds
@@ -106,7 +132,6 @@ export const DeviceProvider = ({ children }) => {
       }, 2000);
     } else {
       setPairingStep('idle');
-      setDeviceStatus('connected');
       setPairingError(response.error || 'Pairing request was rejected');
 
       // Close modal after showing error
@@ -126,29 +151,28 @@ export const DeviceProvider = ({ children }) => {
   const handleUnpaired = useCallback((data) => {
     console.log('Device unpaired:', data);
     setPairedDevice(null);
-    setDeviceStatus('connected');
     setPairingStep('idle');
   }, []);
 
   const handlePairDisconnected = useCallback((data) => {
     console.log('Paired device disconnected:', data);
     setPairedDevice(null);
-    setDeviceStatus('connected');
     setPairingStep('idle');
   }, []);
 
   const handleDeviceStatus = useCallback((status) => {
-    console.log('Device status:', status);
-    setDeviceStatus(status.status || 'connected');
+    console.log('Device status received from server:', status);
+    // Status is now derived from socket connection, so this is just for logging
   }, []);
 
   // Device discovery
   const scanForDevices = useCallback(() => {
-    if (!isNamespaceConnected('device')) {
-      console.warn('Device namespace not connected');
+    if (!deviceSocket?.connected) {
+      console.warn('Device socket not connected');
       return;
     }
 
+    console.log('Scanning for devices...');
     setIsScanning(true);
     emit('device', 'device-scan');
 
@@ -156,18 +180,18 @@ export const DeviceProvider = ({ children }) => {
     setTimeout(() => {
       setIsScanning(false);
     }, 10000);
-  }, [emit, isNamespaceConnected]);
+  }, [emit, deviceSocket]);
 
   // Device pairing
   const requestPairing = useCallback((targetDevice) => {
-    if (!isNamespaceConnected('device')) {
-      console.warn('Device namespace not connected');
+    if (!deviceSocket?.connected) {
+      console.warn('Device socket not connected');
       return;
     }
 
     // Generate 6-digit pairing code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     setPairingCode(code);
     setPairingStep('waiting');
     setShowPairingModal(true);
@@ -179,11 +203,11 @@ export const DeviceProvider = ({ children }) => {
     });
 
     console.log(`Sent pairing request to ${targetDevice.userName} with code ${code}`);
-  }, [emit, isNamespaceConnected]);
+  }, [emit, deviceSocket]);
 
   const respondToPairingRequest = useCallback((request, accepted, enteredCode = null) => {
-    if (!isNamespaceConnected('device')) {
-      console.warn('Device namespace not connected');
+    if (!deviceSocket?.connected) {
+      console.warn('Device socket not connected');
       return;
     }
 
@@ -206,15 +230,14 @@ export const DeviceProvider = ({ children }) => {
         userRole: request.fromUserRole,
         pairedAt: Date.now()
       });
-      setDeviceStatus('paired');
       setPairingStep('paired');
     }
 
     console.log(`Responded to pairing request: ${accepted ? 'accepted' : 'rejected'}`);
-  }, [emit, isNamespaceConnected]);
+  }, [emit, deviceSocket]);
 
   const unpairDevice = useCallback(() => {
-    if (!pairedDevice || !isNamespaceConnected('device')) {
+    if (!pairedDevice || !deviceSocket?.connected) {
       return;
     }
 
@@ -223,10 +246,9 @@ export const DeviceProvider = ({ children }) => {
     });
 
     setPairedDevice(null);
-    setDeviceStatus('connected');
     setPairingStep('idle');
     console.log('Unpaired device');
-  }, [emit, isNamespaceConnected, pairedDevice]);
+  }, [emit, deviceSocket, pairedDevice]);
 
   // Pairing modal management
   const closePairingModal = useCallback(() => {
@@ -243,26 +265,26 @@ export const DeviceProvider = ({ children }) => {
 
   // Connection quality monitoring
   const checkConnectionQuality = useCallback(() => {
-    if (!isNamespaceConnected('device')) {
+    if (!deviceSocket?.connected) {
       return;
     }
 
     const startTime = Date.now();
-    
+
     emit('device', 'ping');
-    
+
     const cleanup = on('device', 'pong', (data) => {
       const latency = Date.now() - startTime;
       console.log('Device connection latency:', latency, 'ms');
-      
+
       emit('device', 'connection-quality', {
         latency: latency,
         timestamp: Date.now()
       });
-      
+
       cleanup();
     });
-  }, [emit, on, isNamespaceConnected]);
+  }, [emit, on, deviceSocket]);
 
   // Generate pairing code for display
   const generatePairingCode = useCallback(() => {

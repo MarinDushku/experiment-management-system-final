@@ -4,11 +4,13 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
     console.log(`Device socket connected: ${socket.user.username} (${socket.id})`);
 
     // Device discovery and status
-    socket.on('device-scan', (filters = {}) => {
-      console.log('Device scan requested by:', socket.user.username, 'with filters:', filters);
+    socket.on('device-scan', (filters) => {
+      // Ensure filters is an object, not null
+      const safeFilters = filters || {};
+      console.log('Device scan requested by:', socket.user.username, 'with filters:', safeFilters);
 
       const now = Date.now();
-      const connectionTimeLimit = filters.recentOnly !== false ? 10 * 60 * 1000 : Infinity; // 10 minutes default
+      const connectionTimeLimit = safeFilters.recentOnly !== false ? 10 * 60 * 1000 : Infinity; // 10 minutes default
 
       // Return list of available devices with smart filtering
       const availableDevices = Array.from(connectedDevices.values())
@@ -33,12 +35,12 @@ const handleDeviceEvents = (io, connectedDevices, devicePairs) => {
           }
 
           // 4. Experiment assignment filter (if provided)
-          if (filters.experimentId && device.currentExperimentId !== filters.experimentId) {
+          if (safeFilters.experimentId && device.currentExperimentId !== safeFilters.experimentId) {
             return false;
           }
 
           // 5. Don't show already paired devices (optional)
-          if (filters.excludePaired && device.status === 'paired') {
+          if (safeFilters.excludePaired && device.status === 'paired') {
             return false;
           }
 
