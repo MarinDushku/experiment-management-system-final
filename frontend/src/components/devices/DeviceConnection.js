@@ -128,6 +128,17 @@ const DeviceConnection = () => {
         </div>
       </div>
 
+      {/* Pairing Request Alert Banner */}
+      {pairingRequests.length > 0 && (
+        <div className="pairing-alert-banner">
+          <span className="alert-icon">🔔</span>
+          <span className="alert-text">
+            {pairingRequests.length} device{pairingRequests.length > 1 ? 's' : ''} requesting to pair
+          </span>
+          <span className="alert-arrow">↓ Scroll down to respond</span>
+        </div>
+      )}
+
       {/* Connection Details */}
       <div className="connection-details">
         <div className="detail-item">
@@ -178,20 +189,23 @@ const DeviceConnection = () => {
           {/* Paired Device Display */}
           {isPaired && pairedDevice && (
             <div className="paired-device">
-              <h3>Paired Device</h3>
+              <h3>✓ Connected Device</h3>
               <div className="device-card paired">
                 <div className="device-info">
-                  <span className="device-name">{pairedDevice.userName}</span>
-                  <span className="device-role">({pairedDevice.userRole})</span>
+                  <div className="paired-indicator">
+                    <span className="status-dot connected"></span>
+                    <span className="device-name">{pairedDevice.userName}</span>
+                  </div>
+                  <span className="device-role">Role: {pairedDevice.userRole}</span>
                   <span className="paired-time">
-                    Paired: {new Date(pairedDevice.pairedAt).toLocaleTimeString()}
+                    Connected at: {new Date(pairedDevice.pairedAt).toLocaleTimeString()}
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={unpairDevice}
-                  className="btn-secondary"
+                  className="btn-danger"
                 >
-                  Unpair
+                  Disconnect
                 </button>
               </div>
             </div>
@@ -253,9 +267,9 @@ const DeviceConnection = () => {
           )}
 
           {/* Pairing Requests */}
-          {pairingRequests.length > 0 && (
+          {pairingRequests.length > 0 ? (
             <div className="pairing-requests">
-              <h3>Pairing Requests</h3>
+              <h3>⚠ Pairing Requests ({pairingRequests.length})</h3>
               {pairingRequests.map((request) => (
                 <div key={request.fromSocketId} className="pairing-request">
                   <div className="request-info">
@@ -287,6 +301,10 @@ const DeviceConnection = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="no-pairing-requests">
+              {/* Empty - no requests */}
             </div>
           )}
         </div>
